@@ -2,17 +2,19 @@ package main
 
 type DocWriter interface {
 	Heading(text string, level int) int
-	Link(url string, options int) int
-	Image(url string, options int) int
+	Link(url string, title string, options int) int
+	Image(url string, title string, options int) int
 	Strike() int
+	Strong() int
 	Bold() int
+	Italic() int
 	Code() int
 	Paragraph() int
-	List() int
+	List(mode int) int
 	ListItem() int
 	Table() int
 	TableRow() int
-	TableCell() int
+	TableCell(flags int) int
 	CodeBlock(lang string) int
 	End(lv int)
 	Write(text string)

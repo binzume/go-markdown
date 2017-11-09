@@ -9,7 +9,33 @@ import (
 type Matcher interface {
 	Prefix() string
 	TryMatch(line string) (int, []string)
-	Render(params []string, scanner *bufio.Scanner, writer DocWriter)
+	Render(params []string, scanner *Source, writer DocWriter)
+}
+
+type Source struct {
+	scanner    *bufio.Scanner
+	hascurrent bool
+	current    string
+}
+
+func (s *Source) Text() string {
+	if s.hascurrent {
+		return s.current
+	}
+	return s.scanner.Text()
+}
+
+func (s *Source) Scan() bool {
+	if s.hascurrent {
+		s.hascurrent = false
+		return true
+	}
+	return s.scanner.Scan()
+}
+
+func (s *Source) Set(data string) {
+	s.hascurrent = true
+	s.current = data
 }
 
 type SimpleInlineMatcher struct {
@@ -23,20 +49,22 @@ func (m *SimpleInlineMatcher) Prefix() string {
 }
 
 func (m *SimpleInlineMatcher) TryMatch(line string) (int, []string) {
+	line = line[len(m.Start):]
 	p := strings.Index(line, m.End)
 	if p < 0 {
 		return -1, nil
 	}
-	return p + len(m.End), []string{line[:p]}
+	return p + len(m.End) + len(m.Start), []string{line[:p]}
 }
 
-func (m *SimpleInlineMatcher) Render(params []string, scanner *bufio.Scanner, writer DocWriter) {
+func (m *SimpleInlineMatcher) Render(params []string, scanner *Source, writer DocWriter) {
 	m.RenderFunc(params[0], writer, m)
 }
 
 type RegexMatcher struct {
 	Re         *regexp.Regexp
-	RenderFunc func(matches []string, writer DocWriter, scanner *bufio.Scanner, matcher *RegexMatcher)
+	RenderFunc func(matches []string, writer DocWriter, scanner *Source, matcher *RegexMatcher)
+	mode       int
 }
 
 func (m *RegexMatcher) Prefix() string {
@@ -51,7 +79,7 @@ func (m *RegexMatcher) TryMatch(text string) (int, []string) {
 	return len(match[0]), match
 }
 
-func (m *RegexMatcher) Render(params []string, scanner *bufio.Scanner, writer DocWriter) {
+func (m *RegexMatcher) Render(params []string, scanner *Source, writer DocWriter) {
 	m.RenderFunc(params, writer, scanner, m)
 }
 
@@ -70,11 +98,11 @@ func (m *LinkInlineMatcher) TryMatch(line string) (int, []string) {
 	if p2 < 0 || p2 < p1 {
 		return -1, nil
 	}
-	return p2 + 1, []string{line[:p1], line[p1+2 : p2]}
+	return p2 + 1, []string{line[1:p1], line[p1+2 : p2]}
 }
 
-func (m *LinkInlineMatcher) Render(params []string, scanner *bufio.Scanner, writer DocWriter) {
-	n := writer.Link(params[1], 0)
+func (m *LinkInlineMatcher) Render(params []string, scanner *Source, writer DocWriter) {
+	n := writer.Link(params[1], "", 0)
 	writer.Write(params[0])
 	writer.End(n)
 }
@@ -85,8 +113,20 @@ func strike(text string, writer DocWriter, markup *SimpleInlineMatcher) {
 	writer.End(a)
 }
 
+func strong(text string, writer DocWriter, markup *SimpleInlineMatcher) {
+	a := writer.Strong()
+	writer.Write(text)
+	writer.End(a)
+}
+
 func bold(text string, writer DocWriter, markup *SimpleInlineMatcher) {
 	a := writer.Bold()
+	writer.Write(text)
+	writer.End(a)
+}
+
+func italic(text string, writer DocWriter, markup *SimpleInlineMatcher) {
+	a := writer.Italic()
 	writer.Write(text)
 	writer.End(a)
 }
@@ -97,19 +137,21 @@ func icode(text string, writer DocWriter, markup *SimpleInlineMatcher) {
 	writer.End(a)
 }
 
-func autolink(params []string, writer DocWriter, scanner *bufio.Scanner, markup *RegexMatcher) {
-	n := writer.Link(params[0], 0)
+func autolink(params []string, writer DocWriter, scanner *Source, markup *RegexMatcher) {
+	n := writer.Link(params[0], "", 0)
 	writer.Write(params[0])
 	writer.End(n)
 }
 
 var inlineElems = []Matcher{
-	&SimpleInlineMatcher{"~", "~", strike},
-	&SimpleInlineMatcher{"*", "*", bold},
+	&SimpleInlineMatcher{"~~", "~~", strike},
+	&SimpleInlineMatcher{"**", "**", strong},
+	&SimpleInlineMatcher{"*", "*", italic},
+	&SimpleInlineMatcher{"``", "``", icode},
 	&SimpleInlineMatcher{"`", "`", icode},
-	&SimpleInlineMatcher{"__", "__", bold},
+	&SimpleInlineMatcher{"__", "__", italic},
 	&LinkInlineMatcher{},
-	&RegexMatcher{regexp.MustCompile(`^https?:[^\s\"\']+`), autolink},
+	&RegexMatcher{regexp.MustCompile(`^https?:[^\s\"\']+`), autolink, 0},
 }
 
 func inline(text string, writer DocWriter) {
@@ -117,11 +159,10 @@ func inline(text string, writer DocWriter) {
 		for _, markup := range inlineElems {
 			// TODO more fast.
 			if strings.HasPrefix(text[pos:], markup.Prefix()) {
-				l, params := markup.TryMatch(text[(pos + len(markup.Prefix())):])
+				l, params := markup.TryMatch(text[pos:])
 				if l > 0 {
 					writer.Write(text[:pos])
 					markup.Render(params, nil, writer)
-					l += len(markup.Prefix())
 					text = text[(pos + l):]
 					pos = 0
 				}
@@ -131,29 +172,41 @@ func inline(text string, writer DocWriter) {
 	writer.Write(text)
 }
 
-func list(params []string, writer DocWriter, scanner *bufio.Scanner, markup *RegexMatcher) {
-	nt := writer.List()
+func list(params []string, writer DocWriter, scanner *Source, markup *RegexMatcher) {
+	nt := writer.List(markup.mode)
+
+	ni := writer.ListItem()
+	indent := len(params[1])
+	inline(params[2], writer)
+	writer.End(ni)
+
 	for scanner.Scan() {
+		text := scanner.Text()
+		params = markup.Re.FindStringSubmatch(text)
+		if len(params) < 1 || len(params[1]) < indent {
+			scanner.Set(text)
+			break
+		} else if len(params[1]) > indent {
+			list(params, writer, scanner, markup)
+			continue
+		}
+		indent = len(params[1])
+
 		ni := writer.ListItem()
 		inline(params[2], writer)
 		writer.End(ni)
-
-		text := scanner.Text()
-		params = markup.Re.FindStringSubmatch(text)
-		if len(params) < 1 {
-			break
-		}
 	}
 	writer.End(nt)
 }
 
-func code(params []string, writer DocWriter, scanner *bufio.Scanner, markup *RegexMatcher) {
-	lang := params[1]
+func code(params []string, writer DocWriter, scanner *Source, markup *RegexMatcher) {
+	lang := strings.Split(params[1], ":")[0]
 	n := writer.CodeBlock(lang)
 	for scanner.Scan() {
 		text := scanner.Text()
 		m := markup.Re.FindStringSubmatch(text)
 		if len(m) > 0 {
+			scanner.Set(text)
 			break
 		}
 		tokenizer := NewTokenizer(lang)
@@ -177,13 +230,13 @@ func code(params []string, writer DocWriter, scanner *bufio.Scanner, markup *Reg
 	writer.End(n)
 }
 
-func table(params []string, writer DocWriter, scanner *bufio.Scanner, markup *RegexMatcher) {
+func table(params []string, writer DocWriter, scanner *Source, markup *RegexMatcher) {
 	nt := writer.Table()
 	for scanner.Scan() {
 		text := params[1]
 		nr := writer.TableRow()
 		for _, s := range strings.Split(text, "|") {
-			nc := writer.TableCell()
+			nc := writer.TableCell(0)
 			inline(s, writer)
 			writer.End(nc)
 		}
@@ -192,20 +245,21 @@ func table(params []string, writer DocWriter, scanner *bufio.Scanner, markup *Re
 		text = scanner.Text()
 		params = markup.Re.FindStringSubmatch(text)
 		if len(params) < 1 {
+			scanner.Set(text)
 			break
 		}
 	}
 	writer.End(nt)
 }
 
-func heading(params []string, writer DocWriter, scanner *bufio.Scanner, markup *RegexMatcher) {
+func heading(params []string, writer DocWriter, scanner *Source, markup *RegexMatcher) {
 	writer.Heading(params[2], len(params[1]))
 }
 
-func comment(params []string, writer DocWriter, scanner *bufio.Scanner, markup *RegexMatcher) {
+func comment(params []string, writer DocWriter, scanner *Source, markup *RegexMatcher) {
 }
 
-func pluginBlock(params []string, writer DocWriter, scanner *bufio.Scanner, markup *RegexMatcher) {
+func pluginBlock(params []string, writer DocWriter, scanner *Source, markup *RegexMatcher) {
 	// TODO
 	n := writer.CodeBlock("")
 	for scanner.Scan() {
@@ -218,12 +272,13 @@ func pluginBlock(params []string, writer DocWriter, scanner *bufio.Scanner, mark
 }
 
 var blockElem = []Matcher{
-	&RegexMatcher{regexp.MustCompile(`^(#{1,4})\s*(.*)`), heading},
-	&RegexMatcher{regexp.MustCompile(`^//.*`), comment},
-	&RegexMatcher{regexp.MustCompile("^```\\s*(\\w*)$"), code},
-	&RegexMatcher{regexp.MustCompile(`^\|(.+)\|$`), table},
-	&RegexMatcher{regexp.MustCompile(`^(\s*)-\s?(.+)$`), list},
-	&RegexMatcher{regexp.MustCompile(`^&(\w+){?$`), pluginBlock},
+	&RegexMatcher{regexp.MustCompile(`^(#{1,4})\s*(.*)`), heading, 0},
+	&RegexMatcher{regexp.MustCompile(`^//.*`), comment, 0},
+	&RegexMatcher{regexp.MustCompile("^```\\s*(\\w*)$"), code, 0},
+	&RegexMatcher{regexp.MustCompile(`^\|(.+)\|$`), table, 0},
+	&RegexMatcher{regexp.MustCompile(`^(\s*)[\-\*]\s(.+)$`), list, 0},
+	&RegexMatcher{regexp.MustCompile(`^(\s*)\d+\.\s(.+)$`), list, 1},
+	&RegexMatcher{regexp.MustCompile(`^&(\w+){?$`), pluginBlock, 0},
 }
 
 // ToHTML convert md to html
@@ -239,7 +294,7 @@ func Convert(scanner *bufio.Scanner, writer DocWriter) error {
 					para = 0
 				}
 				writer.Write("\n")
-				matcher.Render(params, scanner, writer)
+				matcher.Render(params, &Source{scanner: scanner}, writer)
 				text = ""
 				break
 			}
