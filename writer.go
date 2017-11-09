@@ -5,14 +5,16 @@ type DocWriter interface {
 	Link(url string, title string, options int) int
 	Image(url string, title string, options int) int
 	Strike() int
+	Strong() int
 	Bold() int
+	Italic() int
 	Code() int
 	Paragraph() int
 	List(mode int) int
 	ListItem() int
 	Table() int
 	TableRow() int
-	TableCell() int
+	TableCell(flags int) int
 	CodeBlock(lang string) int
 	End(lv int)
 	Write(text string)

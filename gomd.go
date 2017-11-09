@@ -113,8 +113,20 @@ func strike(text string, writer DocWriter, markup *SimpleInlineMatcher) {
 	writer.End(a)
 }
 
+func strong(text string, writer DocWriter, markup *SimpleInlineMatcher) {
+	a := writer.Strong()
+	writer.Write(text)
+	writer.End(a)
+}
+
 func bold(text string, writer DocWriter, markup *SimpleInlineMatcher) {
 	a := writer.Bold()
+	writer.Write(text)
+	writer.End(a)
+}
+
+func italic(text string, writer DocWriter, markup *SimpleInlineMatcher) {
+	a := writer.Italic()
 	writer.Write(text)
 	writer.End(a)
 }
@@ -133,12 +145,11 @@ func autolink(params []string, writer DocWriter, scanner *Source, markup *RegexM
 
 var inlineElems = []Matcher{
 	&SimpleInlineMatcher{"~~", "~~", strike},
-	&SimpleInlineMatcher{"~", "~", strike},
-	&SimpleInlineMatcher{"**", "**", bold},
-	&SimpleInlineMatcher{"*", "*", bold},
+	&SimpleInlineMatcher{"**", "**", strong},
+	&SimpleInlineMatcher{"*", "*", italic},
 	&SimpleInlineMatcher{"``", "``", icode},
 	&SimpleInlineMatcher{"`", "`", icode},
-	&SimpleInlineMatcher{"__", "__", bold},
+	&SimpleInlineMatcher{"__", "__", italic},
 	&LinkInlineMatcher{},
 	&RegexMatcher{regexp.MustCompile(`^https?:[^\s\"\']+`), autolink, 0},
 }
@@ -189,7 +200,7 @@ func list(params []string, writer DocWriter, scanner *Source, markup *RegexMatch
 }
 
 func code(params []string, writer DocWriter, scanner *Source, markup *RegexMatcher) {
-	lang := params[1]
+	lang := strings.Split(params[1], ":")[0]
 	n := writer.CodeBlock(lang)
 	for scanner.Scan() {
 		text := scanner.Text()
@@ -225,7 +236,7 @@ func table(params []string, writer DocWriter, scanner *Source, markup *RegexMatc
 		text := params[1]
 		nr := writer.TableRow()
 		for _, s := range strings.Split(text, "|") {
-			nc := writer.TableCell()
+			nc := writer.TableCell(0)
 			inline(s, writer)
 			writer.End(nc)
 		}

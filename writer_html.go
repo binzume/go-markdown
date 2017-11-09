@@ -70,7 +70,7 @@ func (w *HTMLWriter) TableRow() int {
 	return len(w.closetags) - 1
 }
 
-func (w *HTMLWriter) TableCell() int {
+func (w *HTMLWriter) TableCell(flags int) int {
 	w.writer.Write([]byte("<td>"))
 	w.closetags = append(w.closetags, "</td>")
 	return len(w.closetags) - 1
@@ -82,9 +82,21 @@ func (w *HTMLWriter) Strike() int {
 	return len(w.closetags) - 1
 }
 
+func (w *HTMLWriter) Strong() int {
+	w.writer.Write([]byte("<strong>"))
+	w.closetags = append(w.closetags, "</strong>")
+	return len(w.closetags) - 1
+}
+
 func (w *HTMLWriter) Bold() int {
 	w.writer.Write([]byte("<b>"))
 	w.closetags = append(w.closetags, "</b>")
+	return len(w.closetags) - 1
+}
+
+func (w *HTMLWriter) Italic() int {
+	w.writer.Write([]byte("<i>"))
+	w.closetags = append(w.closetags, "</i>")
 	return len(w.closetags) - 1
 }
 
