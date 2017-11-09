@@ -18,9 +18,7 @@ func main() {
 		"markdown": MdRender,
 	}
 	t := template.Must(template.New("mdtest").Funcs(funcMap).Parse(htmltemplate))
-	err := t.Execute(os.Stdout, map[string]interface{}{
-		"TestValue": 3,
-	})
+	err := t.Execute(os.Stdout, map[string]interface{}{"TestValue": 3})
 	if err != nil {
 		panic(err)
 	}
