@@ -24,7 +24,7 @@ func (w *HTMLWriter) Heading(text string, level int) int {
 	return DUMMY_DEPTH
 }
 
-func (w *HTMLWriter) Paragraph(opt int) int {
+func (w *HTMLWriter) Paragraph() int {
 	io.WriteString(w.writer, "<p>\n")
 	w.closetags = append(w.closetags, "</p>\n")
 	return len(w.closetags) - 1
@@ -32,7 +32,7 @@ func (w *HTMLWriter) Paragraph(opt int) int {
 
 func (w *HTMLWriter) Link(url string, opt int) int {
 	w.writer.Write([]byte("<a href='" + url + "'>"))
-	w.closetags = append(w.closetags, "</a>\n")
+	w.closetags = append(w.closetags, "</a>")
 	return len(w.closetags) - 1
 }
 
@@ -73,19 +73,25 @@ func (w *HTMLWriter) TableCell() int {
 
 func (w *HTMLWriter) Strike() int {
 	w.writer.Write([]byte("<strike>"))
-	w.closetags = append(w.closetags, "</strike>\n")
+	w.closetags = append(w.closetags, "</strike>")
 	return len(w.closetags) - 1
 }
 
 func (w *HTMLWriter) Bold() int {
 	w.writer.Write([]byte("<b>"))
-	w.closetags = append(w.closetags, "</b>\n")
+	w.closetags = append(w.closetags, "</b>")
+	return len(w.closetags) - 1
+}
+
+func (w *HTMLWriter) Code() int {
+	w.writer.Write([]byte("<code>"))
+	w.closetags = append(w.closetags, "</code>")
 	return len(w.closetags) - 1
 }
 
 func (w *HTMLWriter) CodeBlock(lang string) int {
-	w.writer.Write([]byte("<code class='lang_" + lang + "'>"))
-	w.closetags = append(w.closetags, "</code>\n")
+	w.writer.Write([]byte("<pre><code class='lang_" + lang + "'>"))
+	w.closetags = append(w.closetags, "</code></pre>\n")
 	return len(w.closetags) - 1
 }
 
@@ -99,7 +105,7 @@ func (w *HTMLWriter) WriteStyle(text string, className string, color string, fla
 	}
 	w.writer.Write([]byte("<span" + attr + ">"))
 	w.Write(text)
-	w.writer.Write([]byte("/<span>"))
+	w.writer.Write([]byte("</span>"))
 }
 
 func (w *HTMLWriter) Write(text string) {

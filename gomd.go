@@ -92,7 +92,7 @@ func bold(text string, writer DocWriter, markup *SimpleInlineMatcher) {
 }
 
 func icode(text string, writer DocWriter, markup *SimpleInlineMatcher) {
-	a := writer.CodeBlock("")
+	a := writer.Code()
 	writer.Write(text)
 	writer.End(a)
 }
@@ -139,7 +139,7 @@ func list(params []string, writer DocWriter, scanner *bufio.Scanner, markup *Reg
 		writer.End(ni)
 
 		text := scanner.Text()
-		params := markup.Re.FindStringSubmatch(text)
+		params = markup.Re.FindStringSubmatch(text)
 		if len(params) < 1 {
 			break
 		}
@@ -156,15 +156,31 @@ func code(params []string, writer DocWriter, scanner *bufio.Scanner, markup *Reg
 		if len(m) > 0 {
 			break
 		}
-		writer.WriteStyle(text, "", "red", 0)
+		tokenizer := NewTokenizer(lang)
+		tokenizer.Code(text)
+		for typ, s := tokenizer.Read(); typ != CODE_EOF; typ, s = tokenizer.Read() {
+			switch typ {
+			case CODE_Keyword:
+				writer.WriteStyle(s, "code_key", "", 0)
+			case CODE_Number:
+				writer.WriteStyle(s, "code_num", "", 0)
+			case CODE_String:
+				writer.WriteStyle(s, "code_str", "", 0)
+			case CODE_Comment:
+				writer.WriteStyle(s, "code_comment", "", 0)
+			default:
+				writer.Write(s)
+			}
+		}
+		writer.Write("\n")
 	}
 	writer.End(n)
 }
 
 func table(params []string, writer DocWriter, scanner *bufio.Scanner, markup *RegexMatcher) {
 	nt := writer.Table()
-	text := params[1]
 	for scanner.Scan() {
+		text := params[1]
 		nr := writer.TableRow()
 		for _, s := range strings.Split(text, "|") {
 			nc := writer.TableCell()
@@ -174,8 +190,8 @@ func table(params []string, writer DocWriter, scanner *bufio.Scanner, markup *Re
 		writer.End(nr)
 
 		text = scanner.Text()
-		m := markup.Re.FindStringSubmatch(text)
-		if len(m) < 1 {
+		params = markup.Re.FindStringSubmatch(text)
+		if len(params) < 1 {
 			break
 		}
 	}
@@ -212,15 +228,31 @@ var blockElem = []Matcher{
 
 // ToHTML convert md to html
 func Convert(scanner *bufio.Scanner, writer DocWriter) error {
+	para := 0
 	for scanner.Scan() {
 		text := scanner.Text()
 		for _, matcher := range blockElem {
 			l, params := matcher.TryMatch(text)
 			if l > 0 {
+				if para != 0 {
+					writer.End(para)
+					para = 0
+				}
+				writer.Write("\n")
 				matcher.Render(params, scanner, writer)
 				text = ""
 				break
 			}
+		}
+		if text == "" {
+			if para != 0 {
+				writer.End(para)
+				para = 0
+			}
+			continue
+		}
+		if para == 0 {
+			para = writer.Paragraph()
 		}
 		inline(text, writer)
 	}
