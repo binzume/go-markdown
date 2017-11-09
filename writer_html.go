@@ -30,20 +30,25 @@ func (w *HTMLWriter) Paragraph() int {
 	return len(w.closetags) - 1
 }
 
-func (w *HTMLWriter) Link(url string, opt int) int {
+func (w *HTMLWriter) Link(url string, title string, opt int) int {
 	w.writer.Write([]byte("<a href='" + url + "'>"))
 	w.closetags = append(w.closetags, "</a>")
 	return len(w.closetags) - 1
 }
 
-func (w *HTMLWriter) Image(url string, opt int) int {
+func (w *HTMLWriter) Image(url string, title string, opt int) int {
 	w.writer.Write([]byte("<img src='" + url + "' />"))
 	return DUMMY_DEPTH
 }
 
-func (w *HTMLWriter) List() int {
-	w.writer.Write([]byte("<ul>"))
-	w.closetags = append(w.closetags, "</ul>\n")
+func (w *HTMLWriter) List(mode int) int {
+	if mode == 0 {
+		w.writer.Write([]byte("<ul>"))
+		w.closetags = append(w.closetags, "</ul>\n")
+	} else {
+		w.writer.Write([]byte("<ol>"))
+		w.closetags = append(w.closetags, "</ol>\n")
+	}
 	return len(w.closetags) - 1
 }
 

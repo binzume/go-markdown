@@ -22,12 +22,12 @@ var Keywords = map[string][]string{
 	"ruby": RubyKeywords,
 	"rb":   RubyKeywords,
 	"rust": RustKeywords,
-	"rs":   RustKeywords,
 	"php":  PhpKeywords,
 	"perl": PerlKeywords,
 	"pl":   PerlKeywords,
 	"c":    CKeywords,
 	"cpp":  append(CKeywords, CppKeywords...),
+	"js":  append(CKeywords, strings.Split("var,function,new", ",")...),
 }
 
 const CODE_EOF = -1
