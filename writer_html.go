@@ -25,28 +25,28 @@ func (w *HTMLWriter) Heading(text string, level int) int {
 }
 
 func (w *HTMLWriter) Paragraph() int {
-	io.WriteString(w.writer, "<p>\n")
+	io.WriteString(w.writer, "<p>")
 	w.closetags = append(w.closetags, "</p>\n")
 	return len(w.closetags) - 1
 }
 
 func (w *HTMLWriter) Link(url string, title string, opt int) int {
-	w.writer.Write([]byte("<a href='" + url + "'>"))
+	w.writer.Write([]byte("<a href='" + html.EscapeString(url) + "'>"))
 	w.closetags = append(w.closetags, "</a>")
 	return len(w.closetags) - 1
 }
 
 func (w *HTMLWriter) Image(url string, title string, opt int) int {
-	w.writer.Write([]byte("<img src='" + url + "' />"))
+	w.writer.Write([]byte("<img src='" + html.EscapeString(url) + "' />"))
 	return DUMMY_DEPTH
 }
 
 func (w *HTMLWriter) List(mode int) int {
 	if mode == 0 {
-		w.writer.Write([]byte("<ul>"))
+		w.writer.Write([]byte("<ul>\n"))
 		w.closetags = append(w.closetags, "</ul>\n")
 	} else {
-		w.writer.Write([]byte("<ol>"))
+		w.writer.Write([]byte("<ol>\n"))
 		w.closetags = append(w.closetags, "</ol>\n")
 	}
 	return len(w.closetags) - 1
@@ -59,7 +59,7 @@ func (w *HTMLWriter) ListItem() int {
 }
 
 func (w *HTMLWriter) Table() int {
-	w.writer.Write([]byte("<table>"))
+	w.writer.Write([]byte("<table>\n"))
 	w.closetags = append(w.closetags, "</table>\n")
 	return len(w.closetags) - 1
 }
@@ -71,8 +71,13 @@ func (w *HTMLWriter) TableRow() int {
 }
 
 func (w *HTMLWriter) TableCell(flags int) int {
-	w.writer.Write([]byte("<td>"))
-	w.closetags = append(w.closetags, "</td>")
+	if flags == 1 {
+		w.writer.Write([]byte("<th>"))
+		w.closetags = append(w.closetags, "</th>")
+	} else {
+		w.writer.Write([]byte("<td>"))
+		w.closetags = append(w.closetags, "</td>")
+	}
 	return len(w.closetags) - 1
 }
 
@@ -106,8 +111,8 @@ func (w *HTMLWriter) Code() int {
 	return len(w.closetags) - 1
 }
 
-func (w *HTMLWriter) CodeBlock(lang string) int {
-	w.writer.Write([]byte("<pre><code class='lang_" + lang + "'>"))
+func (w *HTMLWriter) CodeBlock(lang string, title string) int {
+	w.writer.Write([]byte("<pre><code class='code_" + lang + "' title='" + html.EscapeString(title) + "'>"))
 	w.closetags = append(w.closetags, "</code></pre>\n")
 	return len(w.closetags) - 1
 }

@@ -23,12 +23,12 @@ func (w *PlainWriter) Paragraph() int {
 	return 0
 }
 
-func (w *PlainWriter) Link(url string, opt int) int {
+func (w *PlainWriter) Link(url string, title string, opt int) int {
 	io.WriteString(w.writer, url)
 	return 0
 }
 
-func (w *PlainWriter) Image(url string, opt int) int {
+func (w *PlainWriter) Image(url string, title string, opt int) int {
 	io.WriteString(w.writer, url)
 	return 0
 }
@@ -52,12 +52,16 @@ func (w *PlainWriter) TableRow() int {
 	return 0
 }
 
-func (w *PlainWriter) TableCell() int {
+func (w *PlainWriter) TableCell(flags int) int {
 	io.WriteString(w.writer, "\t")
 	return 0
 }
 
 func (w *PlainWriter) Strike() int {
+	return 0
+}
+
+func (w *PlainWriter) Strong() int {
 	return 0
 }
 
@@ -69,7 +73,7 @@ func (w *PlainWriter) Code() int {
 	return 0
 }
 
-func (w *PlainWriter) CodeBlock(lang string) int {
+func (w *PlainWriter) CodeBlock(lang string, title string) int {
 	io.WriteString(w.writer, "\t")
 	return 0
 }

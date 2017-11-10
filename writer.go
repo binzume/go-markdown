@@ -15,7 +15,7 @@ type DocWriter interface {
 	Table() int
 	TableRow() int
 	TableCell(flags int) int
-	CodeBlock(lang string) int
+	CodeBlock(lang string, title string) int
 	End(lv int)
 	Write(text string)
 	WriteStyle(text string, className string, color string, flags int)
