@@ -8,9 +8,9 @@ import (
 var RubyKeywords = strings.Split("class,def,if,else,unless,do,next,begin,end,ensure,new,attr_accessor,return,require,require_relative", ",")
 var PerlKeywords = strings.Split("for,foreach,if,else,elsif,do,while,next,last,return,sub,my,qw,local,require,use", ",")
 var CKeywords = strings.Split("void,int,char,float,double,long,short,signed,unsigned,volatile,"+
-	"static,const,auto,for,if,else,do,while,continue,break,return,typedef,enum,struct", ",")
+	"static,const,auto,for,if,else,do,while,continue,break,return,switch,case,default,typedef,enum,struct", ",")
 var CppKeywords = strings.Split("class,public,private,protected,namespace,using,bool,new,delete", ",")
-var GoKeywords = strings.Split("package,import,var,type,for,if,else,continue,break,return,func,switch,case", ",")
+var GoKeywords = strings.Split("package,import,var,type,for,if,else,continue,break,return,func,switch,case,default,int,string,map,float", ",")
 
 var PhpKeywords = strings.Split("for,foreach,if,else,elseif,do,while,continue,break,new,class,return,catch,try,global,public,private,function,switch,case", ",")
 
@@ -27,7 +27,7 @@ var Keywords = map[string][]string{
 	"pl":   PerlKeywords,
 	"c":    CKeywords,
 	"cpp":  append(CKeywords, CppKeywords...),
-	"js":  append(CKeywords, strings.Split("var,function,new", ",")...),
+	"js":   append(CKeywords, strings.Split("var,function,new", ",")...),
 }
 
 const CODE_EOF = -1
