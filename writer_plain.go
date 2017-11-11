@@ -33,7 +33,11 @@ func (w *PlainWriter) Image(url string, title string, opt int) int {
 	return 0
 }
 
-func (w *PlainWriter) List() int {
+func (w *PlainWriter) Hr() int {
+	return 0
+}
+
+func (w *PlainWriter) List(mode int) int {
 	io.WriteString(w.writer, "\n")
 	return 0
 }
@@ -57,6 +61,10 @@ func (w *PlainWriter) TableCell(flags int) int {
 	return 0
 }
 
+func (w *PlainWriter) CheckBox(checked bool) int {
+	return 0
+}
+
 func (w *PlainWriter) Strike() int {
 	return 0
 }
@@ -69,7 +77,15 @@ func (w *PlainWriter) Bold() int {
 	return 0
 }
 
+func (w *PlainWriter) Italic() int {
+	return 0
+}
+
 func (w *PlainWriter) Code() int {
+	return 0
+}
+
+func (w *PlainWriter) QuoteBlock() int {
 	return 0
 }
 

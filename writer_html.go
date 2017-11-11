@@ -98,7 +98,7 @@ func (w *HTMLWriter) TableCell(flags int) int {
 	return w.closeTag("</td>")
 }
 
-func (w *HTMLWriter) CheckBox() int {
+func (w *HTMLWriter) CheckBox(checked bool) int {
 	return w.simple("strike")
 }
 
