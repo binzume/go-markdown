@@ -7,29 +7,24 @@ import (
 )
 
 type Source struct {
-	scanner    *bufio.Scanner
-	hascurrent bool
-	current    string
+	scanner *bufio.Scanner
+	retry   bool
 }
 
 func (s *Source) Text() string {
-	if s.hascurrent {
-		return s.current
-	}
 	return s.scanner.Text()
 }
 
 func (s *Source) Scan() bool {
-	if s.hascurrent {
-		s.hascurrent = false
+	if s.retry {
+		s.retry = false
 		return true
 	}
 	return s.scanner.Scan()
 }
 
-func (s *Source) Set(data string) {
-	s.hascurrent = true
-	s.current = data
+func (s *Source) Retry() {
+	s.retry = true
 }
 
 type Matcher interface {
@@ -163,7 +158,7 @@ func list(params []string, writer DocWriter, scanner *Source, markup *RegexMatch
 		text := scanner.Text()
 		params = markup.Re.FindStringSubmatch(text)
 		if len(params) < 1 || len(params[1]) < indent {
-			scanner.Set(text)
+			scanner.Retry()
 			break
 		} else if len(params[1]) > indent {
 			list(params, writer, scanner, markup)
@@ -200,6 +195,8 @@ func code(params []string, writer DocWriter, scanner *Source, markup *RegexMatch
 				writer.WriteStyle(s, "code_str", "", 0)
 			case CODE_Comment:
 				writer.WriteStyle(s, "code_comment", "", 0)
+			case CODE_Ident:
+				writer.WriteStyle(s, "code_ident", "", 0)
 			default:
 				writer.Write(s)
 			}
@@ -209,21 +206,43 @@ func code(params []string, writer DocWriter, scanner *Source, markup *RegexMatch
 }
 
 func table(params []string, writer DocWriter, scanner *Source, markup *RegexMatcher) {
+	align := make(map[int]int, len(params))
+	if scanner.Scan() {
+		t := markup.Re.FindStringSubmatch(scanner.Text())
+		if len(t) > 0 {
+			for i, s := range strings.Split(t[1], "|") {
+				if strings.Trim(s, " -:|") != "" {
+					scanner.Retry()
+					break
+				}
+				if strings.HasPrefix(s, ":") {
+					align[i] |= 1
+				}
+				if strings.HasSuffix(s, ":") {
+					align[i] |= 2
+				}
+			}
+		} else {
+			scanner.Retry()
+		}
+	}
 	nt := writer.Table()
+	h := 4
 	for scanner.Scan() {
 		text := params[1]
 		nr := writer.TableRow()
-		for _, s := range strings.Split(text, "|") {
-			nc := writer.TableCell(0)
+		for i, s := range strings.Split(text, "|") {
+			nc := writer.TableCell(align[i] | h)
 			inline(s, writer)
 			writer.End(nc)
 		}
 		writer.End(nr)
+		h = 0
 
 		text = scanner.Text()
 		params = markup.Re.FindStringSubmatch(text)
 		if len(params) < 1 {
-			scanner.Set(text)
+			scanner.Retry()
 			break
 		}
 	}
@@ -231,20 +250,20 @@ func table(params []string, writer DocWriter, scanner *Source, markup *RegexMatc
 }
 
 func quote(params []string, writer DocWriter, scanner *Source, markup *RegexMatcher) {
-	n := writer.CodeBlock("", "")
+	n := writer.QuoteBlock()
 	defer writer.End(n)
 
-	writer.Write(params[1])
-	writer.Write("\n")
+	inline(params[1]+"\n", writer)
 	for scanner.Scan() {
 		text := scanner.Text()
-		params := markup.Re.FindStringSubmatch(text)
-		if len(params) == 0 {
-			scanner.Set(text)
+		if text == "" {
 			break
 		}
-		writer.Write(params[1])
-		writer.Write("\n")
+		params := markup.Re.FindStringSubmatch(text)
+		if len(params) > 0 {
+			text = params[1]
+		}
+		inline(text+"\n", writer)
 	}
 }
 
@@ -253,6 +272,10 @@ func heading(params []string, writer DocWriter, scanner *Source, markup *RegexMa
 }
 
 func comment(params []string, writer DocWriter, scanner *Source, markup *RegexMatcher) {
+}
+
+func hr(params []string, writer DocWriter, scanner *Source, markup *RegexMatcher) {
+	writer.Hr()
 }
 
 func pluginBlock(params []string, writer DocWriter, scanner *Source, markup *RegexMatcher) {
@@ -289,6 +312,7 @@ func init() {
 		&RegexMatcher{regexp.MustCompile(`^\|(.+)\|$`), table, 0},
 		&RegexMatcher{regexp.MustCompile(`^(\s*)(-|\*|\+|\d+\.)\s(.+)$`), list, 0},
 		&RegexMatcher{regexp.MustCompile(`^&(\w+){?$`), pluginBlock, 0},
+		&RegexMatcher{regexp.MustCompile(`^([-_]\s?){3,}$`), hr, 0},
 	}
 }
 
@@ -348,9 +372,5 @@ func Convert(scanner0 *bufio.Scanner, writer DocWriter) error {
 		}
 		inline(text, writer)
 	}
-	writer.Close()
-	if err := scanner0.Err(); err != nil {
-		return err
-	}
-	return nil
+	return scanner0.Err()
 }

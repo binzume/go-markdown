@@ -18,6 +18,26 @@ func NewHTMLWriter(writer io.Writer) *HTMLWriter {
 	return &HTMLWriter{writer, make([]string, 10)}
 }
 
+type Attrs map[string]string
+
+func buildTag(tag string, attrs Attrs, end string) string {
+	for k, v := range attrs {
+		if v != "" {
+			tag += " " + k + "='" + html.EscapeString(v) + "'"
+		}
+	}
+	return tag + end
+}
+
+func (w *HTMLWriter) closeTag(t string) int {
+	w.closetags = append(w.closetags, t)
+	return len(w.closetags) - 1
+}
+func (w *HTMLWriter) simple(t string) int {
+	io.WriteString(w.writer, "<"+t+">")
+	return w.closeTag("</" + t + ">")
+}
+
 func (w *HTMLWriter) Heading(text string, level int) int {
 	h := fmt.Sprint(level)
 	io.WriteString(w.writer, "<h"+h+">"+html.EscapeString(text)+"</h"+h+">\n")
@@ -26,112 +46,106 @@ func (w *HTMLWriter) Heading(text string, level int) int {
 
 func (w *HTMLWriter) Paragraph() int {
 	io.WriteString(w.writer, "<p>")
-	w.closetags = append(w.closetags, "</p>\n")
-	return len(w.closetags) - 1
+	return w.closeTag("</p>\n")
 }
 
 func (w *HTMLWriter) Link(url string, title string, opt int) int {
-	w.writer.Write([]byte("<a href='" + html.EscapeString(url) + "'>"))
-	w.closetags = append(w.closetags, "</a>")
-	return len(w.closetags) - 1
+	io.WriteString(w.writer, buildTag("<a", Attrs{"href": url, "title": title}, ">"))
+	return w.closeTag("</a>")
 }
 
 func (w *HTMLWriter) Image(url string, title string, opt int) int {
-	w.writer.Write([]byte("<img src='" + html.EscapeString(url) + "' />"))
+	io.WriteString(w.writer, buildTag("<img", Attrs{"href": url, "title": title, "alt": title}, "/>"))
+	return DUMMY_DEPTH
+}
+
+func (w *HTMLWriter) Hr() int {
+	io.WriteString(w.writer, "<hr/>")
 	return DUMMY_DEPTH
 }
 
 func (w *HTMLWriter) List(mode int) int {
 	if mode == 0 {
 		w.writer.Write([]byte("<ul>\n"))
-		w.closetags = append(w.closetags, "</ul>\n")
-	} else {
-		w.writer.Write([]byte("<ol>\n"))
-		w.closetags = append(w.closetags, "</ol>\n")
+		return w.closeTag("</ul>\n")
 	}
-	return len(w.closetags) - 1
+	w.writer.Write([]byte("<ol>\n"))
+	return w.closeTag("</ol>\n")
 }
 
 func (w *HTMLWriter) ListItem() int {
 	w.writer.Write([]byte("<li>"))
-	w.closetags = append(w.closetags, "</li>\n")
-	return len(w.closetags) - 1
+	return w.closeTag("</li>\n")
 }
 
 func (w *HTMLWriter) Table() int {
 	w.writer.Write([]byte("<table>\n"))
-	w.closetags = append(w.closetags, "</table>\n")
-	return len(w.closetags) - 1
+	return w.closeTag("</table>\n")
 }
 
 func (w *HTMLWriter) TableRow() int {
 	w.writer.Write([]byte("<tr>"))
-	w.closetags = append(w.closetags, "</tr>\n")
-	return len(w.closetags) - 1
+	return w.closeTag("</tr>\n")
 }
 
 func (w *HTMLWriter) TableCell(flags int) int {
-	if flags == 1 {
-		w.writer.Write([]byte("<th>"))
-		w.closetags = append(w.closetags, "</th>")
-	} else {
-		w.writer.Write([]byte("<td>"))
-		w.closetags = append(w.closetags, "</td>")
+	style := []string{"", "text-align:left", "text-align:right", "text-align:center"}[flags&3]
+	if flags&4 != 0 {
+		io.WriteString(w.writer, buildTag("<th", Attrs{"style": style}, ">"))
+		return w.closeTag("</th>")
 	}
-	return len(w.closetags) - 1
+	io.WriteString(w.writer, buildTag("<td", Attrs{"style": style}, ">"))
+	return w.closeTag("</td>")
+}
+
+func (w *HTMLWriter) CheckBox() int {
+	return w.simple("strike")
 }
 
 func (w *HTMLWriter) Strike() int {
-	w.writer.Write([]byte("<strike>"))
-	w.closetags = append(w.closetags, "</strike>")
-	return len(w.closetags) - 1
+	return w.simple("strike")
 }
 
 func (w *HTMLWriter) Strong() int {
-	w.writer.Write([]byte("<strong>"))
-	w.closetags = append(w.closetags, "</strong>")
-	return len(w.closetags) - 1
+	return w.simple("strong")
 }
 
 func (w *HTMLWriter) Bold() int {
-	w.writer.Write([]byte("<b>"))
-	w.closetags = append(w.closetags, "</b>")
-	return len(w.closetags) - 1
+	return w.simple("b")
 }
 
 func (w *HTMLWriter) Italic() int {
-	w.writer.Write([]byte("<i>"))
-	w.closetags = append(w.closetags, "</i>")
-	return len(w.closetags) - 1
+	return w.simple("i")
 }
 
 func (w *HTMLWriter) Code() int {
-	w.writer.Write([]byte("<code>"))
-	w.closetags = append(w.closetags, "</code>")
-	return len(w.closetags) - 1
+	return w.simple("code")
+}
+
+func (w *HTMLWriter) QuoteBlock() int {
+	return w.simple("blockquote")
 }
 
 func (w *HTMLWriter) CodeBlock(lang string, title string) int {
-	w.writer.Write([]byte("<pre><code class='code_" + lang + "' title='" + html.EscapeString(title) + "'>"))
-	w.closetags = append(w.closetags, "</code></pre>\n")
-	return len(w.closetags) - 1
+	if lang != "" {
+		lang = "lang_" + lang
+	}
+	io.WriteString(w.writer, buildTag("<pre><code", Attrs{"class": lang, "title": title}, ">"))
+	return w.closeTag("</code></pre>\n")
 }
 
 func (w *HTMLWriter) WriteStyle(text string, className string, color string, flags int) {
-	attr := ""
-	if className != "" {
-		attr += " class='" + className + "'"
-	}
+	style := ""
 	if color != "" {
-		attr += " style='color:" + color + "'"
+		style += "color:" + color
 	}
-	w.writer.Write([]byte("<span" + attr + ">"))
+	io.WriteString(w.writer, buildTag("<span", Attrs{"class": className, "style": style}, ">"))
 	w.Write(text)
 	w.writer.Write([]byte("</span>"))
 }
 
 func (w *HTMLWriter) Write(text string) {
-	w.writer.Write([]byte(html.EscapeString(text)))
+	io.WriteString(w.writer, html.EscapeString(text))
 }
 
 func (w *HTMLWriter) End(lv int) {

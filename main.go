@@ -42,10 +42,12 @@ func MdRender() string {
 	var out bytes.Buffer
 
 	scanner := bufio.NewScanner(fp)
-	err = Convert(scanner, NewHTMLWriter(&out))
+	writer := NewHTMLWriter(&out)
+	err = Convert(scanner, writer)
 	if err != nil {
 		panic(err)
 	}
+	writer.Close()
 
 	if err := scanner.Err(); err != nil {
 		panic(err)

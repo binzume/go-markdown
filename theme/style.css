@@ -73,9 +73,7 @@
 .gomd .keyword {
 	color: red;
 }
-.gomd code {
-	color: #660000;
-}
+
 .gomd pre{
 	margin: 0 0 8pt;
 	padding: 6pt;
@@ -85,9 +83,41 @@
 	border: 1px solid #cccccc;
 	border-radius: 3pt;
 }
-.gomd quote pre {
+.gomd blockquote {
+	margin: 0 0 8pt;
+	padding: 6pt;
+	word-break: break-all;
+	word-wrap: break-word;
+	white-space : pre;
+	border: solid #cccccc;
 	border-width: 0px 0px 0px 4pt;
-	border-color: #cccccc;
-	border-radius: 0px;
 }
 
+.gomd code {
+	color: #550000;
+    background-color:#f0f0f0;
+}
+
+.gomd pre code {
+    background-color: transparent;
+}
+
+.gomd code span.code_str{
+	color: #992200;
+}
+
+.gomd code span.code_key{
+	color: #3355cc;
+}
+
+.gomd code span.code_num{
+	color: #aa0000;
+}
+
+.gomd code span.code_ident{
+	color: #000000;
+}
+
+.gomd code span.code_comment{
+	color: #228022;
+}

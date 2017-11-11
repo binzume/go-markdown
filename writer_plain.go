@@ -74,7 +74,7 @@ func (w *PlainWriter) Code() int {
 }
 
 func (w *PlainWriter) CodeBlock(lang string, title string) int {
-	io.WriteString(w.writer, "\t")
+	io.WriteString(w.writer, "\n")
 	return 0
 }
 
