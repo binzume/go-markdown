@@ -6,9 +6,9 @@ type DocWriter interface {
 	Image(url string, title string, options int) int
 	Hr() int
 	Strike() int
+	Emphasis() int
 	Strong() int
 	Bold() int
-	Italic() int
 	Code() int
 	Paragraph() int
 	List(mode int) int

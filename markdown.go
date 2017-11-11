@@ -120,8 +120,8 @@ func bold(text string, writer DocWriter, markup *SimpleInlineMatcher) {
 	writer.End(a)
 }
 
-func italic(text string, writer DocWriter, markup *SimpleInlineMatcher) {
-	a := writer.Italic()
+func emphasis(text string, writer DocWriter, markup *SimpleInlineMatcher) {
+	a := writer.Emphasis()
 	inline(text, writer)
 	writer.End(a)
 }
@@ -290,35 +290,44 @@ func pluginBlock(params []string, writer DocWriter, scanner *Source, markup *Reg
 	writer.End(n)
 }
 
-var inlineElems []Matcher
-var blockElems []Matcher
+var defaultInlineElems []Matcher
+var defaultBlockElems []Matcher
 
 func init() {
-	inlineElems = []Matcher{
+	defaultInlineElems = []Matcher{
 		&SimpleInlineMatcher{"~~", "~~", strike},
 		&SimpleInlineMatcher{"**", "**", strong},
-		&SimpleInlineMatcher{"*", "*", italic},
+		&SimpleInlineMatcher{"*", "*", emphasis},
 		&SimpleInlineMatcher{"``", "``", icode},
 		&SimpleInlineMatcher{"`", "`", icode},
-		&SimpleInlineMatcher{"__", "__", italic},
+		&SimpleInlineMatcher{"__", "__", strong},
 		&LinkInlineMatcher{},
 		&RegexMatcher{regexp.MustCompile(`^https?:[^\s\"\'\)<>]+`), autolink, 0},
 	}
-	blockElems = []Matcher{
+	defaultBlockElems = []Matcher{
 		&RegexMatcher{regexp.MustCompile(`^(#{1,4})\s*(.*)`), heading, 0},
 		&RegexMatcher{regexp.MustCompile(`^>+\s?(.*)`), quote, 0},
-		&RegexMatcher{regexp.MustCompile(`^//.*`), comment, 0},
 		&RegexMatcher{regexp.MustCompile("^```\\s*(\\w*)(:.*)?$"), code, 0},
 		&RegexMatcher{regexp.MustCompile(`^\|(.+)\|$`), table, 0},
 		&RegexMatcher{regexp.MustCompile(`^(\s*)(-|\*|\+|\d+\.)\s(.+)$`), list, 0},
-		&RegexMatcher{regexp.MustCompile(`^&(\w+){?$`), pluginBlock, 0},
+		&RegexMatcher{regexp.MustCompile(`^&(\w+)[{]*$`), pluginBlock, 0},
 		&RegexMatcher{regexp.MustCompile(`^([-_]\s?){3,}$`), hr, 0},
+		&RegexMatcher{regexp.MustCompile(`^//.*`), comment, 0},
 	}
+}
+
+type Markdown struct {
+	inlineElems []Matcher
+	blockElems  []Matcher
+}
+
+func NewMarkdown() *Markdown {
+	return &Markdown{defaultInlineElems, defaultBlockElems}
 }
 
 func inline(text string, writer DocWriter) {
 	for pos := 0; pos < len(text); pos++ {
-		for _, markup := range inlineElems {
+		for _, markup := range defaultInlineElems {
 			// TODO more fast.
 			if strings.HasPrefix(text[pos:], markup.Prefix()) {
 				l, params := markup.TryMatch(text[pos:])
@@ -341,13 +350,11 @@ func inline(text string, writer DocWriter) {
 	writer.Write(text)
 }
 
-// ToHTML convert md to html
-func Convert(scanner0 *bufio.Scanner, writer DocWriter) error {
+func (m *Markdown) block(scanner *Source, writer DocWriter) {
 	para := 0
-	scanner := &Source{scanner: scanner0}
 	for scanner.Scan() {
 		text := scanner.Text()
-		for _, matcher := range blockElems {
+		for _, matcher := range m.blockElems {
 			l, params := matcher.TryMatch(text)
 			if l > 0 {
 				if para != 0 {
@@ -372,5 +379,10 @@ func Convert(scanner0 *bufio.Scanner, writer DocWriter) error {
 		}
 		inline(text, writer)
 	}
+}
+
+// ToHTML convert md to html
+func Convert(scanner0 *bufio.Scanner, writer DocWriter) error {
+	NewMarkdown().block(&Source{scanner: scanner0}, writer)
 	return scanner0.Err()
 }

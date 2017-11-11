@@ -106,16 +106,16 @@ func (w *HTMLWriter) Strike() int {
 	return w.simple("strike")
 }
 
+func (w *HTMLWriter) Emphasis() int {
+	return w.simple("em")
+}
+
 func (w *HTMLWriter) Strong() int {
 	return w.simple("strong")
 }
 
 func (w *HTMLWriter) Bold() int {
 	return w.simple("b")
-}
-
-func (w *HTMLWriter) Italic() int {
-	return w.simple("i")
 }
 
 func (w *HTMLWriter) Code() int {

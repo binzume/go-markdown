@@ -69,15 +69,15 @@ func (w *PlainWriter) Strike() int {
 	return 0
 }
 
+func (w *PlainWriter) Emphasis() int {
+	return 0
+}
+
 func (w *PlainWriter) Strong() int {
 	return 0
 }
 
 func (w *PlainWriter) Bold() int {
-	return 0
-}
-
-func (w *PlainWriter) Italic() int {
 	return 0
 }
 
