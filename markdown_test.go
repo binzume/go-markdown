@@ -28,6 +28,7 @@ func TestConvert(t *testing.T) {
 		expect{"## hello", `<h2>hello</h2>`},
 		expect{"> quote", "<blockquote>quote\n</blockquote>"},
 		expect{"- list", "<ul>\n<li>list</li>\n</ul>"},
+		expect{"[ ] hoge", "<input type='checkbox'/> hoge"},
 	}
 
 	for _, test := range tests {

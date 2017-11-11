@@ -278,6 +278,11 @@ func hr(params []string, writer DocWriter, scanner *Source, markup *RegexMatcher
 	writer.Hr()
 }
 
+func checkbox(params []string, writer DocWriter, scanner *Source, markup *RegexMatcher) {
+	writer.CheckBox(params[1] == "x")
+	inline(params[2], writer)
+}
+
 func pluginBlock(params []string, writer DocWriter, scanner *Source, markup *RegexMatcher) {
 	// TODO
 	n := writer.CodeBlock("", "")
@@ -312,6 +317,7 @@ func init() {
 		&RegexMatcher{regexp.MustCompile(`^(\s*)(-|\*|\+|\d+\.)\s(.+)$`), list, 0},
 		&RegexMatcher{regexp.MustCompile(`^&(\w+)[{]*$`), pluginBlock, 0},
 		&RegexMatcher{regexp.MustCompile(`^([-_]\s?){3,}$`), hr, 0},
+		&RegexMatcher{regexp.MustCompile(`^\[([x ])\](.*)`), checkbox, 0}, // todo inline
 		&RegexMatcher{regexp.MustCompile(`^//.*`), comment, 0},
 	}
 }

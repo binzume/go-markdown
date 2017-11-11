@@ -16,6 +16,7 @@ type DocWriter interface {
 	Table() int
 	TableRow() int
 	TableCell(flags int) int
+	CheckBox(checked bool) int
 	QuoteBlock() int
 	CodeBlock(lang string, title string) int
 	End(lv int)

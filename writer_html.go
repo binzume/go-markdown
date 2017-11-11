@@ -99,7 +99,12 @@ func (w *HTMLWriter) TableCell(flags int) int {
 }
 
 func (w *HTMLWriter) CheckBox(checked bool) int {
-	return w.simple("strike")
+	checkedStr := ""
+	if checked {
+		checkedStr = "checked"
+	}
+	io.WriteString(w.writer, buildTag("<input", Attrs{"type": "checkbox", "checked": checkedStr}, "/>"))
+	return DUMMY_DEPTH
 }
 
 func (w *HTMLWriter) Strike() int {
