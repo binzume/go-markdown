@@ -1,4 +1,4 @@
-package main
+package markdown
 
 type DocWriter interface {
 	Heading(text string, level int) int

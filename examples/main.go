@@ -5,6 +5,8 @@ import (
 	"bytes"
 	"os"
 	"text/template"
+
+	"github.com/binzume/go-markdown"
 )
 
 const htmltemplate = `<html>
@@ -42,8 +44,8 @@ func MdRender() string {
 	var out bytes.Buffer
 
 	scanner := bufio.NewScanner(fp)
-	writer := NewHTMLWriter(&out)
-	err = Convert(scanner, writer)
+	writer := markdown.NewHTMLWriter(&out)
+	err = markdown.Convert(scanner, writer)
 	if err != nil {
 		panic(err)
 	}
