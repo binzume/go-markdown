@@ -39,14 +39,17 @@ const CODE_Comment = 9
 const CODE_UNKNOWN = 100
 
 type Tokenizer struct {
-	Lang     string
-	Mode     int
-	keywords map[string]int
-	scanner  scanner.Scanner
+	Lang          string
+	Mode          int
+	keywords      map[string]int
+	scanner       scanner.Scanner
+	cStyleComment bool
 }
 
 func NewTokenizer(lang string) *Tokenizer {
 	t := &Tokenizer{Lang: lang, keywords: make(map[string]int)}
+
+	t.cStyleComment = lang != "rb" && lang != "ruby" && lang != "perl" && lang != "sh"
 
 	for _, k := range Keywords[lang] {
 		t.keywords[k] = 1
@@ -76,9 +79,21 @@ func (t *Tokenizer) Read() (int, string) {
 	case scanner.String, scanner.Char:
 		return CODE_String, s
 	case scanner.Comment:
-		return CODE_Comment, s
+		if t.cStyleComment {
+			return CODE_Comment, s
+		}
+		// FIXME
+		return CODE_UNKNOWN, s
 	case scanner.Float, scanner.Int:
 		return CODE_Number, s
+	case '#':
+		if !t.cStyleComment {
+			for c := t.scanner.Next(); c != scanner.EOF; c = t.scanner.Next() {
+				s += string(c)
+			}
+			return CODE_Comment, s
+		}
+		return CODE_UNKNOWN, s
 	default:
 		return CODE_UNKNOWN, s
 	}
