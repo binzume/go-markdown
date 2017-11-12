@@ -28,7 +28,7 @@ func (w *PlainWriter) Link(url string, title string, opt int) int {
 	return 0
 }
 
-func (w *PlainWriter) Image(url string, title string, opt int) int {
+func (w *PlainWriter) Image(url string, title, alt string, opt int) int {
 	io.WriteString(w.writer, url)
 	return 0
 }

@@ -78,10 +78,12 @@ func (m *RegexMatcher) Render(params []string, scanner *Source, writer *state) {
 	m.RenderFunc(params, writer, scanner, m)
 }
 
-type LinkInlineMatcher struct{}
+type LinkInlineMatcher struct {
+	Start string
+}
 
 func (m *LinkInlineMatcher) Prefix() string {
-	return "["
+	return m.Start
 }
 
 func (m *LinkInlineMatcher) TryMatch(line string) (int, []string) {
@@ -93,13 +95,23 @@ func (m *LinkInlineMatcher) TryMatch(line string) (int, []string) {
 	if p2 < 0 || p2 < p1 {
 		return -1, nil
 	}
-	return p2 + 1, []string{line[1:p1], line[p1+2 : p2]}
+	return p2 + 1, []string{line[len(m.Start):p1], line[p1+2 : p2]}
 }
 
 func (m *LinkInlineMatcher) Render(params []string, scanner *Source, writer *state) {
-	n := writer.Link(strings.Split(params[1], " ")[0], "", 0)
-	writer.Write(params[0])
-	writer.End(n)
+	url := strings.Split(params[1], " ")
+	var title string
+	if len(url) > 1 {
+		title = url[1]
+	}
+	if m.Start == "![" {
+		n := writer.Image(url[0], title, params[0], 0)
+		writer.End(n)
+	} else {
+		n := writer.Link(url[0], title, 0)
+		writer.inline(params[0])
+		writer.End(n)
+	}
 }
 
 func strike(text string, writer *state, markup *SimpleInlineMatcher) {
@@ -306,7 +318,8 @@ func init() {
 		&SimpleInlineMatcher{"``", "``", icode},
 		&SimpleInlineMatcher{"`", "`", icode},
 		&SimpleInlineMatcher{"__", "__", strong},
-		&LinkInlineMatcher{},
+		&LinkInlineMatcher{"["},
+		&LinkInlineMatcher{"!["},
 		&RegexMatcher{"http", regexp.MustCompile(`^https?:[^\s\"\'\)<>]+`), autolink},
 	}
 	defaultBlockElems = []Matcher{

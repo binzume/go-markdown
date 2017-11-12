@@ -54,8 +54,8 @@ func (w *HTMLWriter) Link(url string, title string, opt int) int {
 	return w.closeTag("</a>")
 }
 
-func (w *HTMLWriter) Image(url string, title string, opt int) int {
-	io.WriteString(w.writer, buildTag("<img", Attrs{"href": url, "title": title, "alt": title}, "/>"))
+func (w *HTMLWriter) Image(url string, title, alt string, opt int) int {
+	io.WriteString(w.writer, buildTag("<img", Attrs{"src": url, "title": title, "alt": alt}, "/>"))
 	return DUMMY_DEPTH
 }
 
