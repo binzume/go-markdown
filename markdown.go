@@ -30,13 +30,13 @@ func (s *Source) Retry() {
 type Matcher interface {
 	Prefix() string
 	TryMatch(line string) (int, []string)
-	Render(params []string, scanner *Source, writer DocWriter)
+	Render(params []string, scanner *Source, writer *state)
 }
 
 type SimpleInlineMatcher struct {
 	Start      string
 	End        string
-	RenderFunc func(content string, writer DocWriter, matcher *SimpleInlineMatcher)
+	RenderFunc func(content string, writer *state, matcher *SimpleInlineMatcher)
 }
 
 func (m *SimpleInlineMatcher) Prefix() string {
@@ -52,18 +52,18 @@ func (m *SimpleInlineMatcher) TryMatch(line string) (int, []string) {
 	return p + len(m.End) + len(m.Start), []string{line[:p]}
 }
 
-func (m *SimpleInlineMatcher) Render(params []string, scanner *Source, writer DocWriter) {
+func (m *SimpleInlineMatcher) Render(params []string, scanner *Source, writer *state) {
 	m.RenderFunc(params[0], writer, m)
 }
 
 type RegexMatcher struct {
+	PrefixStr  string
 	Re         *regexp.Regexp
-	RenderFunc func(matches []string, writer DocWriter, scanner *Source, matcher *RegexMatcher)
-	mode       int
+	RenderFunc func(matches []string, writer *state, scanner *Source, matcher *RegexMatcher)
 }
 
 func (m *RegexMatcher) Prefix() string {
-	return ""
+	return m.PrefixStr
 }
 
 func (m *RegexMatcher) TryMatch(text string) (int, []string) {
@@ -74,7 +74,7 @@ func (m *RegexMatcher) TryMatch(text string) (int, []string) {
 	return len(match[0]), match
 }
 
-func (m *RegexMatcher) Render(params []string, scanner *Source, writer DocWriter) {
+func (m *RegexMatcher) Render(params []string, scanner *Source, writer *state) {
 	m.RenderFunc(params, writer, scanner, m)
 }
 
@@ -96,49 +96,49 @@ func (m *LinkInlineMatcher) TryMatch(line string) (int, []string) {
 	return p2 + 1, []string{line[1:p1], line[p1+2 : p2]}
 }
 
-func (m *LinkInlineMatcher) Render(params []string, scanner *Source, writer DocWriter) {
+func (m *LinkInlineMatcher) Render(params []string, scanner *Source, writer *state) {
 	n := writer.Link(strings.Split(params[1], " ")[0], "", 0)
 	writer.Write(params[0])
 	writer.End(n)
 }
 
-func strike(text string, writer DocWriter, markup *SimpleInlineMatcher) {
+func strike(text string, writer *state, markup *SimpleInlineMatcher) {
 	a := writer.Strike()
-	inline(text, writer)
+	writer.inline(text)
 	writer.End(a)
 }
 
-func strong(text string, writer DocWriter, markup *SimpleInlineMatcher) {
+func strong(text string, writer *state, markup *SimpleInlineMatcher) {
 	a := writer.Strong()
-	inline(text, writer)
+	writer.inline(text)
 	writer.End(a)
 }
 
-func bold(text string, writer DocWriter, markup *SimpleInlineMatcher) {
+func bold(text string, writer *state, markup *SimpleInlineMatcher) {
 	a := writer.Bold()
-	inline(text, writer)
+	writer.inline(text)
 	writer.End(a)
 }
 
-func emphasis(text string, writer DocWriter, markup *SimpleInlineMatcher) {
+func emphasis(text string, writer *state, markup *SimpleInlineMatcher) {
 	a := writer.Emphasis()
-	inline(text, writer)
+	writer.inline(text)
 	writer.End(a)
 }
 
-func icode(text string, writer DocWriter, markup *SimpleInlineMatcher) {
+func icode(text string, writer *state, markup *SimpleInlineMatcher) {
 	a := writer.Code()
 	writer.Write(text)
 	writer.End(a)
 }
 
-func autolink(params []string, writer DocWriter, scanner *Source, markup *RegexMatcher) {
+func autolink(params []string, writer *state, scanner *Source, markup *RegexMatcher) {
 	n := writer.Link(params[0], "", 0)
 	writer.Write(params[0])
 	writer.End(n)
 }
 
-func list(params []string, writer DocWriter, scanner *Source, markup *RegexMatcher) {
+func list(params []string, writer *state, scanner *Source, markup *RegexMatcher) {
 	var mode int
 	switch params[2] {
 	case "*", "-", "+":
@@ -151,7 +151,7 @@ func list(params []string, writer DocWriter, scanner *Source, markup *RegexMatch
 
 	ni := writer.ListItem()
 	indent := len(params[1])
-	inline(params[3], writer)
+	writer.inline(params[3])
 	writer.End(ni)
 
 	for scanner.Scan() {
@@ -167,12 +167,12 @@ func list(params []string, writer DocWriter, scanner *Source, markup *RegexMatch
 		indent = len(params[1])
 
 		ni := writer.ListItem()
-		inline(params[3], writer)
+		writer.inline(params[3])
 		writer.End(ni)
 	}
 }
 
-func code(params []string, writer DocWriter, scanner *Source, markup *RegexMatcher) {
+func code(params []string, writer *state, scanner *Source, markup *RegexMatcher) {
 	lang := params[1]
 	n := writer.CodeBlock(lang, params[2])
 	defer writer.End(n)
@@ -205,7 +205,7 @@ func code(params []string, writer DocWriter, scanner *Source, markup *RegexMatch
 	}
 }
 
-func table(params []string, writer DocWriter, scanner *Source, markup *RegexMatcher) {
+func table(params []string, writer *state, scanner *Source, markup *RegexMatcher) {
 	align := make(map[int]int, len(params))
 	if scanner.Scan() {
 		t := markup.Re.FindStringSubmatch(scanner.Text())
@@ -233,7 +233,7 @@ func table(params []string, writer DocWriter, scanner *Source, markup *RegexMatc
 		nr := writer.TableRow()
 		for i, s := range strings.Split(text, "|") {
 			nc := writer.TableCell(align[i] | h)
-			inline(s, writer)
+			writer.inline(s)
 			writer.End(nc)
 		}
 		writer.End(nr)
@@ -249,11 +249,11 @@ func table(params []string, writer DocWriter, scanner *Source, markup *RegexMatc
 	writer.End(nt)
 }
 
-func quote(params []string, writer DocWriter, scanner *Source, markup *RegexMatcher) {
+func quote(params []string, writer *state, scanner *Source, markup *RegexMatcher) {
 	n := writer.QuoteBlock()
 	defer writer.End(n)
 
-	inline(params[1]+"\n", writer)
+	writer.inline(params[1] + "\n")
 	for scanner.Scan() {
 		text := scanner.Text()
 		if text == "" {
@@ -263,27 +263,27 @@ func quote(params []string, writer DocWriter, scanner *Source, markup *RegexMatc
 		if len(params) > 0 {
 			text = params[1]
 		}
-		inline(text+"\n", writer)
+		writer.inline(text + "\n")
 	}
 }
 
-func heading(params []string, writer DocWriter, scanner *Source, markup *RegexMatcher) {
+func heading(params []string, writer *state, scanner *Source, markup *RegexMatcher) {
 	writer.Heading(params[2], len(params[1]))
 }
 
-func comment(params []string, writer DocWriter, scanner *Source, markup *RegexMatcher) {
+func comment(params []string, writer *state, scanner *Source, markup *RegexMatcher) {
 }
 
-func hr(params []string, writer DocWriter, scanner *Source, markup *RegexMatcher) {
+func hr(params []string, writer *state, scanner *Source, markup *RegexMatcher) {
 	writer.Hr()
 }
 
-func checkbox(params []string, writer DocWriter, scanner *Source, markup *RegexMatcher) {
+func checkbox(params []string, writer *state, scanner *Source, markup *RegexMatcher) {
 	writer.CheckBox(params[1] == "x")
-	inline(params[2], writer)
+	writer.inline(params[2])
 }
 
-func pluginBlock(params []string, writer DocWriter, scanner *Source, markup *RegexMatcher) {
+func pluginBlock(params []string, writer *state, scanner *Source, markup *RegexMatcher) {
 	// TODO
 	n := writer.CodeBlock("", "")
 	for scanner.Scan() {
@@ -307,60 +307,76 @@ func init() {
 		&SimpleInlineMatcher{"`", "`", icode},
 		&SimpleInlineMatcher{"__", "__", strong},
 		&LinkInlineMatcher{},
-		&RegexMatcher{regexp.MustCompile(`^https?:[^\s\"\'\)<>]+`), autolink, 0},
+		&RegexMatcher{"http", regexp.MustCompile(`^https?:[^\s\"\'\)<>]+`), autolink},
 	}
 	defaultBlockElems = []Matcher{
-		&RegexMatcher{regexp.MustCompile(`^(#{1,4})\s*(.*)`), heading, 0},
-		&RegexMatcher{regexp.MustCompile(`^>+\s?(.*)`), quote, 0},
-		&RegexMatcher{regexp.MustCompile("^```\\s*(\\w*)(:.*)?$"), code, 0},
-		&RegexMatcher{regexp.MustCompile(`^\|(.+)\|$`), table, 0},
-		&RegexMatcher{regexp.MustCompile(`^(\s*)(-|\*|\+|\d+\.)\s(.+)$`), list, 0},
-		&RegexMatcher{regexp.MustCompile(`^&(\w+)[{]*$`), pluginBlock, 0},
-		&RegexMatcher{regexp.MustCompile(`^([-_]\s?){3,}$`), hr, 0},
-		&RegexMatcher{regexp.MustCompile(`^\[([x ])\](.*)`), checkbox, 0}, // todo inline
-		&RegexMatcher{regexp.MustCompile(`^//.*`), comment, 0},
+		&RegexMatcher{"#", regexp.MustCompile(`^(#{1,4})\s*(.*)`), heading},
+		&RegexMatcher{">", regexp.MustCompile(`^>+\s?(.*)`), quote},
+		&RegexMatcher{"```", regexp.MustCompile("^```\\s*(\\w*)(:.*)?$"), code},
+		&RegexMatcher{"", regexp.MustCompile(`^\|(.+)\|$`), table},
+		&RegexMatcher{"", regexp.MustCompile(`^(\s*)(-|\*|\+|\d+\.)\s(.+)$`), list},
+		&RegexMatcher{"", regexp.MustCompile(`^([-_]\s?){3,}$`), hr},
+		&RegexMatcher{"&", regexp.MustCompile(`^&(\w+)[{]*$`), pluginBlock},
+		&RegexMatcher{"[", regexp.MustCompile(`^\[([x ])\](.*)`), checkbox}, // todo inline
+		&RegexMatcher{"//", regexp.MustCompile(`^//.*`), comment},           // fixme
 	}
 }
 
 type Markdown struct {
-	inlineElems []Matcher
-	blockElems  []Matcher
+	inlineElems   []Matcher
+	blockElems    []Matcher
+	inlineCharMap map[byte]bool
+}
+
+type state struct {
+	*Markdown
+	*Source
+	DocWriter
 }
 
 func NewMarkdown() *Markdown {
-	return &Markdown{defaultInlineElems, defaultBlockElems}
+	m := make(map[byte]bool)
+	for _, markup := range defaultInlineElems {
+		m[markup.Prefix()[0]] = true
+	}
+	return &Markdown{defaultInlineElems, defaultBlockElems, m}
 }
 
-func inline(text string, writer DocWriter) {
+func (s *state) inline(text string) {
+	writer := s.DocWriter
 	for pos := 0; pos < len(text); pos++ {
-		for _, markup := range defaultInlineElems {
-			// TODO more fast.
-			if strings.HasPrefix(text[pos:], markup.Prefix()) {
-				l, params := markup.TryMatch(text[pos:])
-				if l > 0 {
-					if pos > 0 && text[pos-1] == '\\' {
-						// Escaped
-						writer.Write(text[:pos-1])
-						text = text[pos:]
-						pos = len(markup.Prefix())
-						continue
+		// TODO more fast.
+		if s.inlineCharMap[text[pos]] {
+			if pos > 0 && text[pos-1] == '\\' {
+				// Escaped
+				writer.Write(text[:pos-1])
+				text = text[pos:]
+				pos = 1
+				continue
+			}
+			for _, markup := range s.inlineElems {
+				if strings.HasPrefix(text[pos:], markup.Prefix()) {
+					l, params := markup.TryMatch(text[pos:])
+					if l > 0 {
+						writer.Write(text[:pos])
+						markup.Render(params, nil, s)
+						text = text[(pos + l):]
+						pos = 0
 					}
-					writer.Write(text[:pos])
-					markup.Render(params, nil, writer)
-					text = text[(pos + l):]
-					pos = 0
 				}
+
 			}
 		}
 	}
 	writer.Write(text)
 }
 
-func (m *Markdown) block(scanner *Source, writer DocWriter) {
+func (s *state) block(scanner *Source) {
+	writer := s
 	para := 0
 	for scanner.Scan() {
 		text := scanner.Text()
-		for _, matcher := range m.blockElems {
+		for _, matcher := range s.blockElems {
 			l, params := matcher.TryMatch(text)
 			if l > 0 {
 				if para != 0 {
@@ -368,7 +384,7 @@ func (m *Markdown) block(scanner *Source, writer DocWriter) {
 					para = 0
 				}
 				writer.Write("\n")
-				matcher.Render(params, scanner, writer)
+				matcher.Render(params, scanner, s)
 				text = ""
 				break
 			}
@@ -383,12 +399,14 @@ func (m *Markdown) block(scanner *Source, writer DocWriter) {
 		if para == 0 {
 			para = writer.Paragraph()
 		}
-		inline(text, writer)
+		s.inline(text)
 	}
 }
 
 // ToHTML convert md to html
 func Convert(scanner0 *bufio.Scanner, writer DocWriter) error {
-	NewMarkdown().block(&Source{scanner: scanner0}, writer)
+	state := &state{NewMarkdown(), &Source{scanner: scanner0}, writer}
+	state.block(&Source{scanner: scanner0})
+	// NewMarkdown().block(&Source{scanner: scanner0}, writer)
 	return scanner0.Err()
 }
