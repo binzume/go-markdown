@@ -23,12 +23,16 @@ func TestConvert(t *testing.T) {
 		expect{"`this is code.`", `<p><code>this is code.</code></p>`},
 		expect{"``this is `code`.``", "<p><code>this is `code`.</code></p>"},
 		expect{"url: http://www.example.com/", "<p>url: <a href='http://www.example.com/'>http://www.example.com/</a></p>"},
+		expect{`[link](test.png)`, "<p><a href='test.png'>link</a></p>"},
+		expect{`[link](test.png "test")`, "<p><a href='test.png' title='test'>link</a></p>"},
+		expect{`![img](test.png)`, "<p><img src='test.png' alt='img'/></p>"},
+		expect{`![img](test.png "test")`, "<p><img src='test.png' alt='img' title='test'/></p>"},
 		// block
 		expect{"# hello", `<h1>hello</h1>`},
 		expect{"## hello", `<h2>hello</h2>`},
 		expect{"> quote", "<blockquote>quote\n</blockquote>"},
 		expect{"- list", "<ul>\n<li>list</li>\n</ul>"},
-		expect{"[ ] hoge", "<input type='checkbox'/> hoge"},
+		expect{"- [ ] hoge", "<ul>\n<li><input type='checkbox'/>hoge</li>\n</ul>"},
 	}
 
 	for _, test := range tests {

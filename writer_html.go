@@ -18,12 +18,15 @@ func NewHTMLWriter(writer io.Writer) *HTMLWriter {
 	return &HTMLWriter{writer, make([]string, 10)}
 }
 
-type Attrs map[string]string
+type kv struct {
+	k string
+	v string
+}
 
-func buildTag(tag string, attrs Attrs, end string) string {
-	for k, v := range attrs {
-		if v != "" {
-			tag += " " + k + "='" + html.EscapeString(v) + "'"
+func buildTag(tag string, end string, attrs ...kv) string {
+	for _, kv := range attrs {
+		if kv.v != "" {
+			tag += " " + kv.k + "='" + html.EscapeString(kv.v) + "'"
 		}
 	}
 	return tag + end
@@ -50,12 +53,12 @@ func (w *HTMLWriter) Paragraph() int {
 }
 
 func (w *HTMLWriter) Link(url string, title string, opt int) int {
-	io.WriteString(w.writer, buildTag("<a", Attrs{"href": url, "title": title}, ">"))
+	io.WriteString(w.writer, buildTag("<a", ">", kv{"href", url}, kv{"title", title}))
 	return w.closeTag("</a>")
 }
 
 func (w *HTMLWriter) Image(url string, title, alt string, opt int) int {
-	io.WriteString(w.writer, buildTag("<img", Attrs{"src": url, "title": title, "alt": alt}, "/>"))
+	io.WriteString(w.writer, buildTag("<img", "/>", kv{"src", url}, kv{"alt", alt}, kv{"title", title}))
 	return DUMMY_DEPTH
 }
 
@@ -91,10 +94,10 @@ func (w *HTMLWriter) TableRow() int {
 func (w *HTMLWriter) TableCell(flags int) int {
 	style := []string{"", "text-align:left", "text-align:right", "text-align:center"}[flags&3]
 	if flags&4 != 0 {
-		io.WriteString(w.writer, buildTag("<th", Attrs{"style": style}, ">"))
+		io.WriteString(w.writer, buildTag("<th", ">", kv{"style", style}))
 		return w.closeTag("</th>")
 	}
-	io.WriteString(w.writer, buildTag("<td", Attrs{"style": style}, ">"))
+	io.WriteString(w.writer, buildTag("<td", ">", kv{"style", style}))
 	return w.closeTag("</td>")
 }
 
@@ -103,7 +106,7 @@ func (w *HTMLWriter) CheckBox(checked bool) int {
 	if checked {
 		checkedStr = "checked"
 	}
-	io.WriteString(w.writer, buildTag("<input", Attrs{"type": "checkbox", "checked": checkedStr}, "/>"))
+	io.WriteString(w.writer, buildTag("<input", "/>", kv{"type", "checkbox"}, kv{"checked", checkedStr}))
 	return DUMMY_DEPTH
 }
 
@@ -135,7 +138,7 @@ func (w *HTMLWriter) CodeBlock(lang string, title string) int {
 	if lang != "" {
 		lang = "lang_" + lang
 	}
-	io.WriteString(w.writer, buildTag("<pre><code", Attrs{"class": lang, "title": title}, ">"))
+	io.WriteString(w.writer, buildTag("<pre><code", ">", kv{"class", lang}, kv{"title", title}))
 	return w.closeTag("</code></pre>\n")
 }
 
@@ -144,7 +147,7 @@ func (w *HTMLWriter) WriteStyle(text string, className string, color string, fla
 	if color != "" {
 		style += "color:" + color
 	}
-	io.WriteString(w.writer, buildTag("<span", Attrs{"class": className, "style": style}, ">"))
+	io.WriteString(w.writer, buildTag("<span", ">", kv{"class", className}, kv{"style", style}))
 	w.Write(text)
 	w.writer.Write([]byte("</span>"))
 }
