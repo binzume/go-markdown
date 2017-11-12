@@ -1,5 +1,8 @@
 # Simple Markdown for Golang
 
+[![Build Status](https://travis-ci.org/binzume/go-markdown.svg)](https://travis-ci.org/binzume/go-markdown)
+[![codecov](https://codecov.io/gh/binzume/go-markdown/branch/master/graph/badge.svg)](https://codecov.io/gh/binzume/go-markdown)
+
 This is an EXPERIMENTAL implementation of markdown processor.
 
 Are you looking for https://github.com/russross/blackfriday ?
