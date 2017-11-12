@@ -408,6 +408,8 @@ func (s *state) block() {
 		}
 		if para == 0 {
 			para = writer.Paragraph()
+		} else {
+			s.Write("\n")
 		}
 		s.inline(text)
 	}
