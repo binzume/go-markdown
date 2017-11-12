@@ -25,7 +25,7 @@ func (m *SimpleInlineMatcher) Prefix() string {
 func (m *SimpleInlineMatcher) TryMatch(line string) (int, []string) {
 	line = line[len(m.Start):]
 	p := strings.Index(line, m.End)
-	if p < 0 {
+	if p <= 0 {
 		return -1, nil
 	}
 	return p + len(m.End) + len(m.Start), []string{line[:p]}
@@ -111,12 +111,6 @@ func strike(text string, md *state, markup *SimpleInlineMatcher) {
 
 func strong(text string, md *state, markup *SimpleInlineMatcher) {
 	n := md.Strong()
-	md.inline(text)
-	md.End(n)
-}
-
-func bold(text string, md *state, markup *SimpleInlineMatcher) {
-	n := md.Bold()
 	md.inline(text)
 	md.End(n)
 }
@@ -288,14 +282,12 @@ func quote(params []string, md *state, markup *RegexMatcher) {
 
 func pluginBlock(params []string, md *state, markup *RegexMatcher) {
 	// TODO
-	n := md.CodeBlock("", "")
 	for md.Scan() {
 		text := md.Text()
 		if text == "}" {
 			break
 		}
 	}
-	md.End(n)
 }
 
 var defaultInlineElems []Matcher

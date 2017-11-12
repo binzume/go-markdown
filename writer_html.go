@@ -122,10 +122,6 @@ func (w *HTMLWriter) Strong() int {
 	return w.simple("strong")
 }
 
-func (w *HTMLWriter) Bold() int {
-	return w.simple("b")
-}
-
 func (w *HTMLWriter) Code() int {
 	return w.simple("code")
 }

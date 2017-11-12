@@ -77,10 +77,6 @@ func (w *PlainWriter) Strong() int {
 	return 0
 }
 
-func (w *PlainWriter) Bold() int {
-	return 0
-}
-
 func (w *PlainWriter) Code() int {
 	return 0
 }

@@ -8,7 +8,6 @@ type DocWriter interface {
 	Strike() int
 	Emphasis() int
 	Strong() int
-	Bold() int
 	Code() int
 	Paragraph() int
 	List(mode int) int

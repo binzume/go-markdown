@@ -23,6 +23,8 @@ func TestConvert(t *testing.T) {
 		expect{`~~**hello**~~`, `<p><strike><strong>hello</strong></strike></p>`},
 		expect{"`this is code.`", `<p><code>this is code.</code></p>`},
 		expect{"``this is `code`.``", "<p><code>this is `code`.</code></p>"},
+		expect{`\*escaped*`, `<p>*escaped*</p>`},
+		expect{`aaa ** bbb`, `<p>aaa ** bbb</p>`},
 		expect{"url: http://www.example.com/?hello", "<p>url: <a href='http://www.example.com/?hello'>http://www.example.com/?hello</a></p>"},
 		expect{`[link](test.png)`, "<p><a href='test.png'>link</a></p>"},
 		expect{`[link](test.png "test")`, "<p><a href='test.png' title='test'>link</a></p>"},
@@ -34,11 +36,12 @@ func TestConvert(t *testing.T) {
 		expect{"# hello", `<h1>hello</h1>`},
 		expect{"## hello", `<h2>hello</h2>`},
 		expect{"----------", "<hr/>"},
-		expect{"> quote", "<blockquote>quote\n</blockquote>"},
+		expect{"> quote\n> aaa", "<blockquote>quote\naaa\n</blockquote>"},
 		expect{"|a|b|\n|-|-|\n|1|2|\n", "<table>\n<tr><th>a</th><th>b</th></tr>\n<tr><td>1</td><td>2</td></tr>\n</table>"},
 		expect{"- item1\n- item2\n", "<ul>\n<li>item1</li>\n<li>item2</li>\n</ul>"},
 		expect{"- [ ] hoge", "<ul>\n<li><input type='checkbox'/>hoge</li>\n</ul>"},
 		expect{"[dummy]: # (dummy ref)", ""},
+		expect{"&dummy_plugin{\ndummy\n}", ""},
 	}
 
 	for _, test := range tests {
