@@ -6,37 +6,16 @@ import (
 	"strings"
 )
 
-type Source struct {
-	scanner *bufio.Scanner
-	retry   bool
-}
-
-func (s *Source) Text() string {
-	return s.scanner.Text()
-}
-
-func (s *Source) Scan() bool {
-	if s.retry {
-		s.retry = false
-		return true
-	}
-	return s.scanner.Scan()
-}
-
-func (s *Source) Retry() {
-	s.retry = true
-}
-
 type Matcher interface {
 	Prefix() string
 	TryMatch(line string) (int, []string)
-	Render(params []string, scanner *Source, writer *state)
+	Render(params []string, s *state)
 }
 
 type SimpleInlineMatcher struct {
 	Start      string
 	End        string
-	RenderFunc func(content string, writer *state, matcher *SimpleInlineMatcher)
+	RenderFunc func(content string, s *state, matcher *SimpleInlineMatcher)
 }
 
 func (m *SimpleInlineMatcher) Prefix() string {
@@ -52,14 +31,14 @@ func (m *SimpleInlineMatcher) TryMatch(line string) (int, []string) {
 	return p + len(m.End) + len(m.Start), []string{line[:p]}
 }
 
-func (m *SimpleInlineMatcher) Render(params []string, scanner *Source, writer *state) {
-	m.RenderFunc(params[0], writer, m)
+func (m *SimpleInlineMatcher) Render(params []string, s *state) {
+	m.RenderFunc(params[0], s, m)
 }
 
 type RegexMatcher struct {
 	PrefixStr  string
 	Re         *regexp.Regexp
-	RenderFunc func(matches []string, writer *state, scanner *Source, matcher *RegexMatcher)
+	RenderFunc func(matches []string, s *state, matcher *RegexMatcher)
 }
 
 func (m *RegexMatcher) Prefix() string {
@@ -74,8 +53,8 @@ func (m *RegexMatcher) TryMatch(text string) (int, []string) {
 	return len(match[0]), match
 }
 
-func (m *RegexMatcher) Render(params []string, scanner *Source, writer *state) {
-	m.RenderFunc(params, writer, scanner, m)
+func (m *RegexMatcher) Render(params []string, s *state) {
+	m.RenderFunc(params, s, m)
 }
 
 type LinkInlineMatcher struct {
@@ -91,66 +70,87 @@ func (m *LinkInlineMatcher) TryMatch(line string) (int, []string) {
 	if p1 < 0 {
 		return -1, nil
 	}
-	p2 := strings.Index(line, ")")
-	if p2 < 0 || p2 < p1 {
+
+	pos := len(m.Start)
+retry:
+	if strings.Index(line[pos:p1], "![") >= 0 {
+		if p := strings.Index(line[p1+1:], "]("); p >= 0 {
+			pos = p1
+			p1 += p + 1
+			goto retry
+		}
+	}
+	p2 := strings.Index(line[p1:], ")") + p1
+	if p2 < 0 {
 		return -1, nil
 	}
 	return p2 + 1, []string{line[len(m.Start):p1], line[p1+2 : p2]}
 }
 
-func (m *LinkInlineMatcher) Render(params []string, scanner *Source, writer *state) {
+func (m *LinkInlineMatcher) Render(params []string, md *state) {
 	url := strings.Split(params[1], " ")
 	var title string
 	if len(url) > 1 {
 		title = strings.Trim(url[1], "\" ")
 	}
 	if m.Start == "![" {
-		n := writer.Image(url[0], title, params[0], 0)
-		writer.End(n)
+		n := md.Image(url[0], title, params[0], 0)
+		md.End(n)
 	} else {
-		n := writer.Link(url[0], title, 0)
-		writer.inline(params[0])
-		writer.End(n)
+		n := md.Link(url[0], title, 0)
+		md.inline(params[0])
+		md.End(n)
 	}
 }
 
-func strike(text string, writer *state, markup *SimpleInlineMatcher) {
-	a := writer.Strike()
-	writer.inline(text)
-	writer.End(a)
+func strike(text string, md *state, markup *SimpleInlineMatcher) {
+	n := md.Strike()
+	md.inline(text)
+	md.End(n)
 }
 
-func strong(text string, writer *state, markup *SimpleInlineMatcher) {
-	a := writer.Strong()
-	writer.inline(text)
-	writer.End(a)
+func strong(text string, md *state, markup *SimpleInlineMatcher) {
+	n := md.Strong()
+	md.inline(text)
+	md.End(n)
 }
 
-func bold(text string, writer *state, markup *SimpleInlineMatcher) {
-	a := writer.Bold()
-	writer.inline(text)
-	writer.End(a)
+func bold(text string, md *state, markup *SimpleInlineMatcher) {
+	n := md.Bold()
+	md.inline(text)
+	md.End(n)
 }
 
-func emphasis(text string, writer *state, markup *SimpleInlineMatcher) {
-	a := writer.Emphasis()
-	writer.inline(text)
-	writer.End(a)
+func emphasis(text string, md *state, markup *SimpleInlineMatcher) {
+	n := md.Emphasis()
+	md.inline(text)
+	md.End(n)
 }
 
-func icode(text string, writer *state, markup *SimpleInlineMatcher) {
-	a := writer.Code()
-	writer.Write(text)
-	writer.End(a)
+func icode(text string, md *state, markup *SimpleInlineMatcher) {
+	n := md.Code()
+	md.Write(text)
+	md.End(n)
 }
 
-func autolink(params []string, writer *state, scanner *Source, markup *RegexMatcher) {
-	n := writer.Link(params[0], "", 0)
-	writer.Write(params[0])
-	writer.End(n)
+func autolink(params []string, md *state, markup *RegexMatcher) {
+	n := md.Link(params[0], "", 0)
+	md.Write(params[0])
+	md.End(n)
 }
 
-func list(params []string, writer *state, scanner *Source, markup *RegexMatcher) {
+func heading(params []string, md *state, markup *RegexMatcher) {
+	md.Heading(params[2], len(params[1]))
+}
+
+func hr(params []string, md *state, markup *RegexMatcher) {
+	md.Hr()
+}
+
+func dummy(params []string, md *state, markup *RegexMatcher) {
+}
+
+func list(params []string, s *state, markup *RegexMatcher) {
 	var mode int
 	switch params[2] {
 	case "*", "-", "+":
@@ -158,76 +158,77 @@ func list(params []string, writer *state, scanner *Source, markup *RegexMatcher)
 	default:
 		mode = 1 // ordered
 	}
-	nt := writer.List(mode)
-	defer writer.End(nt)
+	nt := s.List(mode)
+	defer s.End(nt)
 
 	indent := 0
 	for {
-		ni := writer.ListItem()
+		ni := s.ListItem()
 		indent = len(params[1])
 		if strings.HasPrefix(params[3], "[ ] ") || strings.HasPrefix(params[3], "[x] ") {
-			writer.CheckBox(params[3][1] == 'x')
+			s.CheckBox(params[3][1] == 'x')
 			params[3] = params[3][4:]
 		}
-		writer.inline(params[3])
-		writer.End(ni)
-
-		text := scanner.Text()
+		s.inline(params[3])
+		s.End(ni)
+	retry:
+		if !s.Scan() {
+			break
+		}
+		text := s.Text()
 		params = markup.Re.FindStringSubmatch(text)
 		if len(params) < 1 || len(params[1]) < indent {
-			scanner.Retry()
+			s.Retry()
 			break
 		} else if len(params[1]) > indent {
-			list(params, writer, scanner, markup)
-			continue
-		}
-		if !scanner.Scan() {
-			break
+			list(params, s, markup)
+			goto retry
 		}
 	}
 }
 
-func code(params []string, writer *state, scanner *Source, markup *RegexMatcher) {
+func code(params []string, s *state, markup *RegexMatcher) {
 	lang := params[1]
-	n := writer.CodeBlock(lang, params[2])
-	defer writer.End(n)
+	n := s.CodeBlock(lang, params[2])
+	defer s.End(n)
 
-	for scanner.Scan() {
-		text := scanner.Text()
+	tokenizer := NewTokenizer(lang)
+
+	for s.Scan() {
+		text := s.Text()
 		m := markup.Re.FindStringSubmatch(text)
 		if len(m) > 0 {
 			break
 		}
-		tokenizer := NewTokenizer(lang)
 		tokenizer.Code(text)
-		for typ, s := tokenizer.Read(); typ != CODE_EOF; typ, s = tokenizer.Read() {
+		for typ, token := tokenizer.Read(); typ != CODE_EOF; typ, token = tokenizer.Read() {
 			switch typ {
 			case CODE_Keyword:
-				writer.WriteStyle(s, "code_key", "", 0)
+				s.WriteStyle(token, "code_key", "", 0)
 			case CODE_Number:
-				writer.WriteStyle(s, "code_num", "", 0)
+				s.WriteStyle(token, "code_num", "", 0)
 			case CODE_String:
-				writer.WriteStyle(s, "code_str", "", 0)
+				s.WriteStyle(token, "code_str", "", 0)
 			case CODE_Comment:
-				writer.WriteStyle(s, "code_comment", "", 0)
+				s.WriteStyle(token, "code_comment", "", 0)
 			case CODE_Ident:
-				writer.WriteStyle(s, "code_ident", "", 0)
+				s.WriteStyle(token, "code_ident", "", 0)
 			default:
-				writer.Write(s)
+				s.Write(token)
 			}
 		}
-		writer.Write("\n")
+		s.Write("\n")
 	}
 }
 
-func table(params []string, writer *state, scanner *Source, markup *RegexMatcher) {
+func table(params []string, md *state, markup *RegexMatcher) {
 	align := make(map[int]int, len(params))
-	if scanner.Scan() {
-		t := markup.Re.FindStringSubmatch(scanner.Text())
+	if md.Scan() {
+		t := markup.Re.FindStringSubmatch(md.Text())
 		if len(t) > 0 {
 			for i, s := range strings.Split(t[1], "|") {
 				if strings.Trim(s, " -:|") != "" {
-					scanner.Retry()
+					md.Retry()
 					break
 				}
 				if strings.HasPrefix(s, ":") {
@@ -238,39 +239,42 @@ func table(params []string, writer *state, scanner *Source, markup *RegexMatcher
 				}
 			}
 		} else {
-			scanner.Retry()
+			md.Retry()
 		}
 	}
-	nt := writer.Table()
+	nt := md.Table()
 	h := 4
-	for scanner.Scan() {
+	for {
 		text := params[1]
-		nr := writer.TableRow()
+		nr := md.TableRow()
 		for i, s := range strings.Split(text, "|") {
-			nc := writer.TableCell(align[i] | h)
-			writer.inline(s)
-			writer.End(nc)
+			nc := md.TableCell(align[i] | h)
+			md.inline(s)
+			md.End(nc)
 		}
-		writer.End(nr)
+		md.End(nr)
 		h = 0
 
-		text = scanner.Text()
+		if !md.Scan() {
+			break
+		}
+		text = md.Text()
 		params = markup.Re.FindStringSubmatch(text)
 		if len(params) < 1 {
-			scanner.Retry()
+			md.Retry()
 			break
 		}
 	}
-	writer.End(nt)
+	md.End(nt)
 }
 
-func quote(params []string, writer *state, scanner *Source, markup *RegexMatcher) {
-	n := writer.QuoteBlock()
-	defer writer.End(n)
+func quote(params []string, md *state, markup *RegexMatcher) {
+	n := md.QuoteBlock()
+	defer md.End(n)
 
-	writer.inline(params[1] + "\n")
-	for scanner.Scan() {
-		text := scanner.Text()
+	md.inline(params[1] + "\n")
+	for md.Scan() {
+		text := md.Text()
 		if text == "" {
 			break
 		}
@@ -278,31 +282,20 @@ func quote(params []string, writer *state, scanner *Source, markup *RegexMatcher
 		if len(params) > 0 {
 			text = params[1]
 		}
-		writer.inline(text + "\n")
+		md.inline(text + "\n")
 	}
 }
 
-func heading(params []string, writer *state, scanner *Source, markup *RegexMatcher) {
-	writer.Heading(params[2], len(params[1]))
-}
-
-func comment(params []string, writer *state, scanner *Source, markup *RegexMatcher) {
-}
-
-func hr(params []string, writer *state, scanner *Source, markup *RegexMatcher) {
-	writer.Hr()
-}
-
-func pluginBlock(params []string, writer *state, scanner *Source, markup *RegexMatcher) {
+func pluginBlock(params []string, md *state, markup *RegexMatcher) {
 	// TODO
-	n := writer.CodeBlock("", "")
-	for scanner.Scan() {
-		text := scanner.Text()
+	n := md.CodeBlock("", "")
+	for md.Scan() {
+		text := md.Text()
 		if text == "}" {
 			break
 		}
 	}
-	writer.End(n)
+	md.End(n)
 }
 
 var defaultInlineElems []Matcher
@@ -327,23 +320,19 @@ func init() {
 		&RegexMatcher{"", regexp.MustCompile(`^\|(.+)\|$`), table},
 		&RegexMatcher{"", regexp.MustCompile(`^(\s*)(-|\*|\+|\d+\.)\s(.+)$`), list},
 		&RegexMatcher{"", regexp.MustCompile(`^([-_]\s?){3,}$`), hr},
+		&RegexMatcher{"[", regexp.MustCompile(`^\[([^\]]+)\]:\s+([^\s]+)\s+(.*)`), dummy}, // fixme
 		&RegexMatcher{"&", regexp.MustCompile(`^&(\w+)[{]*$`), pluginBlock},
-		&RegexMatcher{"//", regexp.MustCompile(`^//.*`), comment}, // fixme
 	}
 }
 
+// Markdown config.
 type Markdown struct {
 	inlineElems   []Matcher
 	blockElems    []Matcher
 	inlineCharMap map[byte]bool
 }
 
-type state struct {
-	*Markdown
-	*Source
-	DocWriter
-}
-
+// NewMarkdown returns *Markdown
 func NewMarkdown() *Markdown {
 	m := make(map[byte]bool)
 	for _, markup := range defaultInlineElems {
@@ -352,11 +341,30 @@ func NewMarkdown() *Markdown {
 	return &Markdown{defaultInlineElems, defaultBlockElems, m}
 }
 
+type state struct {
+	*Markdown
+	*bufio.Scanner
+	DocWriter
+	retry bool
+}
+
+func (s *state) Scan() bool {
+	if s.retry {
+		s.retry = false
+		return true
+	}
+	return s.Scanner.Scan()
+}
+
+func (s *state) Retry() {
+	s.retry = true
+}
+
 func (s *state) inline(text string) {
 	writer := s.DocWriter
 	for pos := 0; pos < len(text); pos++ {
 		// TODO more fast.
-		if s.inlineCharMap[text[pos]] {
+		if s.inlineCharMap[text[pos]] || true {
 			if pos > 0 && text[pos-1] == '\\' {
 				// Escaped
 				writer.Write(text[:pos-1])
@@ -369,7 +377,7 @@ func (s *state) inline(text string) {
 					l, params := markup.TryMatch(text[pos:])
 					if l > 0 {
 						writer.Write(text[:pos])
-						markup.Render(params, nil, s)
+						markup.Render(params, s)
 						text = text[(pos + l):]
 						pos = 0
 					}
@@ -381,11 +389,11 @@ func (s *state) inline(text string) {
 	writer.Write(text)
 }
 
-func (s *state) block(scanner *Source) {
-	writer := s
+func (s *state) block() {
+	writer := s.DocWriter
 	para := 0
-	for scanner.Scan() {
-		text := scanner.Text()
+	for s.Scan() {
+		text := s.Text()
 		for _, matcher := range s.blockElems {
 			l, params := matcher.TryMatch(text)
 			if l > 0 {
@@ -394,7 +402,7 @@ func (s *state) block(scanner *Source) {
 					para = 0
 				}
 				writer.Write("\n")
-				matcher.Render(params, scanner, s)
+				matcher.Render(params, s)
 				text = ""
 				break
 			}
@@ -413,10 +421,10 @@ func (s *state) block(scanner *Source) {
 	}
 }
 
-// ToHTML convert md to html
+// Convert md to html.
 func Convert(scanner0 *bufio.Scanner, writer DocWriter) error {
-	state := &state{NewMarkdown(), &Source{scanner: scanner0}, writer}
-	state.block(&Source{scanner: scanner0})
+	state := &state{NewMarkdown(), scanner0, writer, false}
+	state.block()
 	// NewMarkdown().block(&Source{scanner: scanner0}, writer)
 	return scanner0.Err()
 }
