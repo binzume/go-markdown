@@ -14,7 +14,7 @@ func NewPlainWriter(writer io.Writer) *PlainWriter {
 }
 
 func (w *PlainWriter) Heading(text string, level int) int {
-	io.WriteString(w.writer, "\n")
+	io.WriteString(w.writer, text+"\n")
 	return 0
 }
 
@@ -29,7 +29,7 @@ func (w *PlainWriter) Link(url string, title string, opt int) int {
 }
 
 func (w *PlainWriter) Image(url string, title, alt string, opt int) int {
-	io.WriteString(w.writer, url)
+	io.WriteString(w.writer, alt+"("+url+")")
 	return 0
 }
 
