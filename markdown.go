@@ -102,7 +102,7 @@ func (m *LinkInlineMatcher) Render(params []string, scanner *Source, writer *sta
 	url := strings.Split(params[1], " ")
 	var title string
 	if len(url) > 1 {
-		title = url[1]
+		title = strings.Trim(url[1], "\" ")
 	}
 	if m.Start == "![" {
 		n := writer.Image(url[0], title, params[0], 0)
@@ -156,17 +156,22 @@ func list(params []string, writer *state, scanner *Source, markup *RegexMatcher)
 	case "*", "-", "+":
 		mode = 0
 	default:
-		mode = 1
+		mode = 1 // ordered
 	}
 	nt := writer.List(mode)
 	defer writer.End(nt)
 
-	ni := writer.ListItem()
-	indent := len(params[1])
-	writer.inline(params[3])
-	writer.End(ni)
+	indent := 0
+	for {
+		ni := writer.ListItem()
+		indent = len(params[1])
+		if strings.HasPrefix(params[3], "[ ] ") || strings.HasPrefix(params[3], "[x] ") {
+			writer.CheckBox(params[3][1] == 'x')
+			params[3] = params[3][4:]
+		}
+		writer.inline(params[3])
+		writer.End(ni)
 
-	for scanner.Scan() {
 		text := scanner.Text()
 		params = markup.Re.FindStringSubmatch(text)
 		if len(params) < 1 || len(params[1]) < indent {
@@ -176,11 +181,9 @@ func list(params []string, writer *state, scanner *Source, markup *RegexMatcher)
 			list(params, writer, scanner, markup)
 			continue
 		}
-		indent = len(params[1])
-
-		ni := writer.ListItem()
-		writer.inline(params[3])
-		writer.End(ni)
+		if !scanner.Scan() {
+			break
+		}
 	}
 }
 
@@ -290,11 +293,6 @@ func hr(params []string, writer *state, scanner *Source, markup *RegexMatcher) {
 	writer.Hr()
 }
 
-func checkbox(params []string, writer *state, scanner *Source, markup *RegexMatcher) {
-	writer.CheckBox(params[1] == "x")
-	writer.inline(params[2])
-}
-
 func pluginBlock(params []string, writer *state, scanner *Source, markup *RegexMatcher) {
 	// TODO
 	n := writer.CodeBlock("", "")
@@ -330,8 +328,7 @@ func init() {
 		&RegexMatcher{"", regexp.MustCompile(`^(\s*)(-|\*|\+|\d+\.)\s(.+)$`), list},
 		&RegexMatcher{"", regexp.MustCompile(`^([-_]\s?){3,}$`), hr},
 		&RegexMatcher{"&", regexp.MustCompile(`^&(\w+)[{]*$`), pluginBlock},
-		&RegexMatcher{"[", regexp.MustCompile(`^\[([x ])\](.*)`), checkbox}, // todo inline
-		&RegexMatcher{"//", regexp.MustCompile(`^//.*`), comment},           // fixme
+		&RegexMatcher{"//", regexp.MustCompile(`^//.*`), comment}, // fixme
 	}
 }
 
