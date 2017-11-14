@@ -3,6 +3,8 @@ package markdown
 import (
 	"bufio"
 	"bytes"
+	"fmt"
+	"os"
 	"strings"
 	"testing"
 )
@@ -78,5 +80,37 @@ func TestConvert(t *testing.T) {
 			t.Errorf("got '%v'\nwant '%v'", out.String(), test.expected)
 		}
 
+	}
+}
+
+func TestExamples(t *testing.T) {
+	infile := "examples/sample.md"
+	outfile := "examples/sample.html"
+
+	fp, err := os.Open(infile)
+	if err != nil {
+		t.Errorf("error %v", err)
+		return
+	}
+	defer fp.Close()
+	ofp, err := os.Create(outfile)
+	if err != nil {
+		t.Errorf("error %v", err)
+		return
+	}
+	defer ofp.Close()
+
+	fmt.Fprint(ofp, `<html><head><link rel="stylesheet" type="text/css" href="theme/style.css" /></head>
+		<body><div class="gomd">`)
+
+	scanner := bufio.NewScanner(fp)
+	writer := NewHTMLWriter(ofp)
+	err = Convert(scanner, writer)
+	writer.Close()
+
+	fmt.Fprint(ofp, `</div></body></html>`)
+
+	if err != nil {
+		t.Errorf("error %v", err)
 	}
 }

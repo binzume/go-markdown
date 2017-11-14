@@ -1,6 +1,7 @@
 package markdown
 
 import (
+	"io"
 	"strings"
 	"text/scanner"
 )
@@ -40,7 +41,7 @@ const CODE_UNKNOWN = 100
 
 type Tokenizer struct {
 	Lang          string
-	Mode          int
+	Supported     bool
 	keywords      map[string]int
 	scanner       scanner.Scanner
 	cStyleComment bool
@@ -50,6 +51,8 @@ func NewTokenizer(lang string) *Tokenizer {
 	t := &Tokenizer{Lang: lang, keywords: make(map[string]int)}
 
 	t.cStyleComment = lang != "rb" && lang != "ruby" && lang != "perl" && lang != "sh"
+	_, exists := Keywords[lang]
+	t.Supported = exists
 
 	for _, k := range Keywords[lang] {
 		t.keywords[k] = 1
@@ -58,8 +61,8 @@ func NewTokenizer(lang string) *Tokenizer {
 	return t
 }
 
-func (t *Tokenizer) Code(code string) {
-	t.scanner.Init(strings.NewReader(code))
+func (t *Tokenizer) Code(reader io.Reader) {
+	t.scanner.Init(reader)
 	t.scanner.Mode = scanner.GoTokens ^ scanner.SkipComments
 	t.scanner.Whitespace = 0
 	t.scanner.Error = func(s *scanner.Scanner, msg string) {}
@@ -67,10 +70,14 @@ func (t *Tokenizer) Code(code string) {
 
 func (t *Tokenizer) Read() (int, string) {
 	tok := t.scanner.Scan()
+	if tok == scanner.EOF {
+		return CODE_EOF, ""
+	}
 	s := t.scanner.TokenText()
+	if !t.Supported {
+		return CODE_UNKNOWN, s
+	}
 	switch tok {
-	case scanner.EOF:
-		return CODE_EOF, s
 	case scanner.Ident:
 		if t.keywords[s] > 0 {
 			return CODE_Keyword, s
@@ -88,8 +95,8 @@ func (t *Tokenizer) Read() (int, string) {
 		return CODE_Number, s
 	case '#':
 		if !t.cStyleComment {
-			for c := t.scanner.Next(); c != scanner.EOF; c = t.scanner.Next() {
-				s += string(c)
+			for c := t.scanner.Peek(); c != scanner.EOF && c != '\n'; c = t.scanner.Peek() {
+				s += string(t.scanner.Next())
 			}
 			return CODE_Comment, s
 		}

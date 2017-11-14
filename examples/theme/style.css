@@ -42,7 +42,7 @@
 	padding: 0pt 16pt;
 }
 
-.gomd>ul,ol {
+.gomd>ul,.gomd>ol {
 	margin: 0pt 0pt 10pt;
 }
 
@@ -82,6 +82,8 @@
 	background-color: #f8f8f8;
 	border: 1px solid #cccccc;
 	border-radius: 3pt;
+	-moz-tab-size: 4;
+	tab-size: 4;
 }
 .gomd blockquote {
 	margin: 0 0 8pt;
@@ -101,7 +103,10 @@
 .gomd pre code {
     background-color: transparent;
 }
-
+.gomd pre code[title="console"] {
+    background-color: black;
+	color: #dddddd;
+}
 .gomd code span.code_str{
 	color: #992200;
 }

@@ -1,0 +1,130 @@
+<html><head><link rel="stylesheet" type="text/css" href="theme/style.css" /></head>
+		<body><div class="gomd">
+<h1>Sample Markdown</h1>
+<p>テスト用ファイルです．</p>
+<p><code>go test</code> でのテスト時にhtmlが生成されます.</p>
+
+<ul>
+<li><a href='sample.md'>sample.md</a></li>
+<li><a href='sample.html'>sample.html</a></li>
+</ul>
+<p>以下動作確認用.</p>
+
+<h2>リスト</h2>
+
+<pre><code class='lang_md'>- 新幹線
+  - のぞみ
+  - つばさ
+  - あさま
+- 特急
+  - あずさ
+  - しなの
+</code></pre>
+
+<ul>
+<li>新幹線</li>
+<ul>
+<li>のぞみ</li>
+<li>つばさ</li>
+<li>あさま</li>
+</ul>
+<li>特急</li>
+<ul>
+<li>あずさ</li>
+<li>しなの</li>
+</ul>
+</ul>
+
+<ol>
+<li>aaa</li>
+<li>bbb</li>
+<li>ccc</li>
+</ol>
+
+<ul>
+<li>tasklist</li>
+<li><input type='checkbox'/>todo</li>
+<li><input type='checkbox' checked='checked'/>done</li>
+</ul>
+
+<h2>テーブル</h2>
+
+<pre><code class='lang_md'>| 左寄せ | 中央 | 右寄せ |
+|:------|:----:|------:|
+| 1     |   2  |     3 |
+| A     |   B  |     C |
+</code></pre>
+
+<table>
+<tr><th style='text-align:left'> 左寄せ </th><th style='text-align:center'> 中央 </th><th style='text-align:right'> 右寄せ </th></tr>
+<tr><td style='text-align:left'> 1     </td><td style='text-align:center'>   2  </td><td style='text-align:right'>     3 </td></tr>
+<tr><td style='text-align:left'> A     </td><td style='text-align:center'>   B  </td><td style='text-align:right'>     C </td></tr>
+</table>
+
+<h2>コード</h2>
+
+<h3>Golang</h3>
+
+<pre><code class='lang_go'><span class='code_key'>package</span> <span class='code_ident'>main</span>
+
+<span class='code_key'>import</span> (
+	<span class='code_str'>&#34;fmt&#34;</span>
+	<span class='code_str'>&#34;github.com/binzume/go-calendar&#34;</span>
+)
+
+<span class='code_key'>func</span> <span class='code_ident'>main</span>() {
+	<span class='code_ident'>fmt</span>.<span class='code_ident'>Println</span>(<span class='code_ident'>calendar</span>.<span class='code_ident'>NewCalendar</span>().<span class='code_ident'>Markdown</span>())
+}
+</code></pre>
+
+<h3>C</h3>
+
+<pre><code class='lang_c'><span class='code_comment'>/*
+	filter_source.pmのテスト
+*/</span>
+<span class='code_key'>int</span> <span class='code_ident'>main</span>()
+{
+	<span class='code_key'>int</span> <span class='code_ident'>test</span>=<span class='code_num'>123</span>; <span class='code_comment'>// コメントテスト</span>
+	<span class='code_ident'>printf</span>(<span class='code_str'>&#34;Hello, World!\n&#34;</span>);
+	<span class='code_key'>return</span> <span class='code_num'>0</span>;
+}
+</code></pre>
+
+<h3>Ruby</h3>
+
+<pre><code class='lang_rb'><span class='code_comment'># hello</span>
+<span class='code_key'>class</span> <span class='code_ident'>Hoge</span>
+  <span class='code_key'>def</span> <span class='code_ident'>hello</span>
+    <span class='code_ident'>puts</span> <span class='code_str'>&#34;world!&#34;</span>
+    <span class='code_ident'>puts</span> <span class='code_str'>&#39;class Hoge&#39;</span>
+  <span class='code_key'>end</span>
+<span class='code_key'>end</span>
+</code></pre>
+
+<h1>h1</h1>
+
+<h2>h2</h2>
+
+<h3>h3</h3>
+
+<h4>h4</h4>
+<p>aaa <code>inline code</code> bbb.</p>
+<p>hello.</p>
+
+<table>
+<tr><th>Table</th><th>test</th></tr>
+<tr><td>1</td><td>2</td></tr>
+<tr><td>3</td><td>4</td></tr>
+</table>
+
+<ul>
+<li>item1</li>
+<li>item2 </li>
+<li>item3</li>
+</ul>
+
+<ul>
+<li>AutoLink <a href='https://www.google.co.jp'>https://www.google.co.jp</a></li>
+<li>Link <a href='https://www.google.co.jp'>Google</a></li>
+</ul>
+</div></body></html>

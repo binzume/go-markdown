@@ -2,6 +2,8 @@ package markdown
 
 import (
 	"bufio"
+	"bytes"
+	"io"
 	"regexp"
 	"strings"
 )
@@ -187,31 +189,22 @@ func code(params []string, s *state, markup *RegexMatcher) {
 	defer s.End(n)
 
 	tokenizer := NewTokenizer(lang)
-
-	for s.Scan() {
-		text := s.Text()
-		m := markup.Re.FindStringSubmatch(text)
-		if len(m) > 0 {
-			break
+	tokenizer.Code(&LimitedReader{scanner: s, delimiter: []byte("```")})
+	for typ, token := tokenizer.Read(); typ != CODE_EOF; typ, token = tokenizer.Read() {
+		switch typ {
+		case CODE_Keyword:
+			s.WriteStyle(token, "code_key", "", 0)
+		case CODE_Number:
+			s.WriteStyle(token, "code_num", "", 0)
+		case CODE_String:
+			s.WriteStyle(token, "code_str", "", 0)
+		case CODE_Comment:
+			s.WriteStyle(token, "code_comment", "", 0)
+		case CODE_Ident:
+			s.WriteStyle(token, "code_ident", "", 0)
+		default:
+			s.Write(token)
 		}
-		tokenizer.Code(text)
-		for typ, token := tokenizer.Read(); typ != CODE_EOF; typ, token = tokenizer.Read() {
-			switch typ {
-			case CODE_Keyword:
-				s.WriteStyle(token, "code_key", "", 0)
-			case CODE_Number:
-				s.WriteStyle(token, "code_num", "", 0)
-			case CODE_String:
-				s.WriteStyle(token, "code_str", "", 0)
-			case CODE_Comment:
-				s.WriteStyle(token, "code_comment", "", 0)
-			case CODE_Ident:
-				s.WriteStyle(token, "code_ident", "", 0)
-			default:
-				s.Write(token)
-			}
-		}
-		s.Write("\n")
 	}
 }
 
@@ -350,6 +343,28 @@ func (s *state) Scan() bool {
 
 func (s *state) Retry() {
 	s.retry = true
+}
+
+type LimitedReader struct {
+	scanner   *state
+	delimiter []byte
+	buf       []byte
+}
+
+func (r *LimitedReader) Read(p []byte) (n int, err error) {
+	if len(r.buf) == 0 {
+		if !r.scanner.Scan() {
+			return 0, io.EOF
+		}
+		r.buf = r.scanner.Bytes()
+		if bytes.HasPrefix(r.buf, r.delimiter) {
+			return 0, io.EOF
+		}
+		r.buf = append(r.buf, '\n')
+	}
+	l := copy(p, r.buf)
+	r.buf = r.buf[l:]
+	return l, nil
 }
 
 func (s *state) inline(text string) {
