@@ -1,7 +1,6 @@
 # Simple Markdown for Golang
 
-[![Build Status](https://travis-ci.org/binzume/go-markdown.svg)](https://travis-ci.org/binzume/go-markdown)
-[![codecov](https://codecov.io/gh/binzume/go-markdown/branch/master/graph/badge.svg)](https://codecov.io/gh/binzume/go-markdown)
+[![Go test](https://github.com/binzume/go-markdown/actions/workflows/test.yml/badge.svg)](https://github.com/binzume/go-markdown/actions/workflows/test.yml)
 
 This is an EXPERIMENTAL implementation of markdown processor.
 
