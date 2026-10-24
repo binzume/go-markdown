@@ -36,6 +36,12 @@ func (w *HTMLWriter) closeTag(t string) int {
 	w.closetags = append(w.closetags, t)
 	return len(w.closetags) - 1
 }
+
+func (w *HTMLWriter) Block(className string) int {
+	io.WriteString(w.writer, buildTag("<div", ">\n", kv{"class", className}))
+	return w.closeTag("</div>\n")
+}
+
 func (w *HTMLWriter) simple(t string) int {
 	io.WriteString(w.writer, "<"+t+">")
 	return w.closeTag("</" + t + ">")

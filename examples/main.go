@@ -8,6 +8,7 @@ import (
 	"text/template"
 
 	"github.com/binzume/go-markdown"
+	"github.com/binzume/go-markdown/directives"
 )
 
 const htmltemplate = `<html>
@@ -40,12 +41,14 @@ func main() {
 }
 
 func MdRender(in io.Reader) string {
-	// out := os.Stdout
 	var out bytes.Buffer
+
+	md := markdown.NewMarkdown()
+	directives.RegisterNote(md)
 
 	scanner := bufio.NewScanner(in)
 	writer := markdown.NewHTMLWriter(&out)
-	err := markdown.Convert(scanner, writer)
+	err := md.Convert(scanner, writer)
 	if err != nil {
 		panic(err)
 	}

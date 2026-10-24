@@ -51,6 +51,7 @@ func TestPlainWriter(t *testing.T) {
 			expectfun{func(w DocWriter) { w.Emphasis() }, ""},
 			expectfun{func(w DocWriter) { w.Strong() }, ""},
 			expectfun{func(w DocWriter) { w.Code() }, ""},
+			expectfun{func(w DocWriter) { w.Block("note") }, ""},
 			expectfun{func(w DocWriter) { w.Link("http://example.com", "test", 0) }, "http://example.com"},
 			expectfun{func(w DocWriter) { w.Image("http://example.com/a.png", "", "test", 0) }, "test(http://example.com/a.png)"},
 			expectfun{func(w DocWriter) { w.Heading("test", 1) }, "test\n"},

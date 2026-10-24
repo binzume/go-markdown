@@ -1,6 +1,7 @@
 package markdown
 
 type DocWriter interface {
+	Block(className string) int
 	Heading(text string, level int) int
 	Link(url string, title string, options int) int
 	Image(url string, title, alt string, options int) int

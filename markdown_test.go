@@ -3,8 +3,7 @@ package markdown
 import (
 	"bufio"
 	"bytes"
-	"fmt"
-	"os"
+	"io"
 	"strings"
 	"testing"
 )
@@ -47,7 +46,6 @@ func TestConvert(t *testing.T) {
 		expect{"- [ ] hoge", "<ul>\n<li><input type='checkbox'/>hoge</li>\n</ul>"},
 		expect{"- [x] fuga", "<ul>\n<li><input type='checkbox' checked='checked'/>fuga</li>\n</ul>"},
 		expect{"[dummy]: # (dummy ref)", ""},
-		expect{"&dummy_plugin{\ndummy\n}", ""},
 
 		// code
 		expect{"```go\n// test\nfunc main() {\nfmt.Print(\"hello!\")\n}\n```",
@@ -83,34 +81,109 @@ func TestConvert(t *testing.T) {
 	}
 }
 
-func TestExamples(t *testing.T) {
-	infile := "examples/sample.md"
-	outfile := "examples/sample.html"
+func TestDirectives(t *testing.T) {
+	md := NewMarkdown()
+	var body string
+	md.RegisterDirective("note", func(d *DirectiveContext) error {
+		content, err := io.ReadAll(d.Content)
+		body = string(content)
+		if d.Name != "note" || d.Argument != "warning compact" {
+			t.Errorf("unexpected directive context: %#v", d)
+		}
+		return err
+	})
 
-	fp, err := os.Open(infile)
+	var out bytes.Buffer
+	writer := NewHTMLWriter(&out)
+	err := md.Convert(bufio.NewScanner(strings.NewReader(":::note warning compact\n**hello**\n:::")), writer)
 	if err != nil {
-		t.Errorf("error %v", err)
-		return
+		t.Fatal(err)
 	}
-	defer fp.Close()
-	ofp, err := os.Create(outfile)
-	if err != nil {
-		t.Errorf("error %v", err)
-		return
+	if body != "**hello**\n" {
+		t.Errorf("got body %q", body)
 	}
-	defer ofp.Close()
+}
 
-	fmt.Fprint(ofp, `<html><head><link rel="stylesheet" type="text/css" href="theme/style.css" /></head>
-		<body><div class="gomd">`)
+func TestReferenceLinks(t *testing.T) {
+	input := `[docs]: https://example.com/docs "Documentation"
 
-	scanner := bufio.NewScanner(fp)
-	writer := NewHTMLWriter(ofp)
-	err = Convert(scanner, writer)
+[full][DOCS] [docs][] [docs] ![logo][docs]`
+	var out bytes.Buffer
+	writer := NewHTMLWriter(&out)
+	if err := Convert(bufio.NewScanner(strings.NewReader(input)), writer); err != nil {
+		t.Fatal(err)
+	}
 	writer.Close()
 
-	fmt.Fprint(ofp, `</div></body></html>`)
+	want := `<p><a href='https://example.com/docs' title='Documentation'>full</a> <a href='https://example.com/docs' title='Documentation'>docs</a> <a href='https://example.com/docs' title='Documentation'>docs</a> <img src='https://example.com/docs' alt='logo' title='Documentation'/></p>`
+	if got := strings.TrimSpace(out.String()); got != want {
+		t.Fatalf("got %q, want %q", got, want)
+	}
+}
 
+func TestUnknownDirectiveRendersAsDiv(t *testing.T) {
+	input := ":::unknown\n**hello**\n:::"
+	var out bytes.Buffer
+	writer := NewHTMLWriter(&out)
+	if err := Convert(bufio.NewScanner(strings.NewReader(input)), writer); err != nil {
+		t.Fatal(err)
+	}
+	writer.Close()
+
+	want := `<div>
+<p><strong>hello</strong></p>
+</div>`
+	if got := strings.TrimSpace(out.String()); got != want {
+		t.Fatalf("got %q, want %q", got, want)
+	}
+}
+
+func TestNestedDirectivesUseLongerFences(t *testing.T) {
+	md := NewMarkdown()
+	var body string
+	md.RegisterDirective("outer", func(d *DirectiveContext) error {
+		content, err := io.ReadAll(d.Content)
+		body = string(content)
+		return err
+	})
+
+	var out bytes.Buffer
+	input := "::::outer\n:::inner\ninside\n:::\nafter\n::::"
+	writer := NewHTMLWriter(&out)
+	if err := md.Convert(bufio.NewScanner(strings.NewReader(input)), writer); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(body, ":::inner\ninside\n:::") {
+		t.Errorf("nested directive body was not preserved: %q", body)
+	}
+}
+
+func TestUnclosedDirective(t *testing.T) {
+	md := NewMarkdown()
+	md.RegisterDirective("note", func(d *DirectiveContext) error { return nil })
+	var out bytes.Buffer
+	err := md.Convert(bufio.NewScanner(strings.NewReader(":::note\nbody")), NewHTMLWriter(&out))
+	if err == nil || !strings.Contains(err.Error(), "unclosed directive") {
+		t.Fatalf("expected unclosed directive error, got %v", err)
+	}
+}
+
+func TestDelimiterReaderStopsAtDelimiter(t *testing.T) {
+	scanner := bufio.NewScanner(strings.NewReader("one\n```not-end\n```\nafter"))
+	state := &SyntaxContext{Scanner: scanner}
+	reader := &DelimiterReader{
+		scanner:   state,
+		delimiter: []byte("```"),
+	}
+
+	got, err := io.ReadAll(reader)
 	if err != nil {
-		t.Errorf("error %v", err)
+		t.Fatal(err)
+	}
+	if string(got) != "one\n```not-end\n" {
+		t.Errorf("got %q", got)
+	}
+	if rest, err := io.ReadAll(reader); err != nil || len(rest) != 0 {
+		t.Errorf("reader continued after delimiter: %q, %v", rest, err)
 	}
 }

@@ -13,6 +13,10 @@ func NewPlainWriter(writer io.Writer) *PlainWriter {
 	return &PlainWriter{writer}
 }
 
+func (w *PlainWriter) Block(className string) int {
+	return 0
+}
+
 func (w *PlainWriter) Heading(text string, level int) int {
 	io.WriteString(w.writer, text+"\n")
 	return 0
