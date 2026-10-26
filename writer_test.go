@@ -54,7 +54,12 @@ func TestPlainWriter(t *testing.T) {
 			expectfun{func(w DocWriter) { w.Block("note") }, ""},
 			expectfun{func(w DocWriter) { w.Link("http://example.com", "test", 0) }, "http://example.com"},
 			expectfun{func(w DocWriter) { w.Image("http://example.com/a.png", "", "test", 0) }, "test(http://example.com/a.png)"},
-			expectfun{func(w DocWriter) { w.Heading("test", 1) }, "test\n"},
+			expectfun{func(w DocWriter) {
+				n := w.Heading(1)
+				w.Write("test")
+				w.End(n)
+				w.Write("\n")
+			}, "test\n"},
 			expectfun{func(w DocWriter) { w.Paragraph() }, "\n"},
 			expectfun{func(w DocWriter) { w.List(0) }, "\n"},
 			expectfun{func(w DocWriter) { w.ListItem() }, ""},

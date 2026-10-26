@@ -28,6 +28,8 @@ func TestConvert(t *testing.T) {
 		expect{`\*escaped*`, `<p>*escaped*</p>`},
 		expect{`aaa ** bbb`, `<p>aaa ** bbb</p>`},
 		expect{"url: http://www.example.com/?hello", "<p>url: <a href='http://www.example.com/?hello'>http://www.example.com/?hello</a></p>"},
+		expect{`:unknown[body]{argument}`, "<p><span>body</span></p>"},
+		expect{`prefix :unknown[**body**]{argument}`, "<p>prefix <span><strong>body</strong></span></p>"},
 		expect{`[link](test.png)`, "<p><a href='test.png'>link</a></p>"},
 		expect{`[link](test.png "test")`, "<p><a href='test.png' title='test'>link</a></p>"},
 		expect{`![img](test.png)`, "<p><img src='test.png' alt='img'/></p>"},
@@ -38,6 +40,7 @@ func TestConvert(t *testing.T) {
 		// block
 		expect{"# hello", `<h1>hello</h1>`},
 		expect{"## hello", `<h2>hello</h2>`},
+		expect{`# **strong** *emphasis* [link](target)`, `<h1><strong>strong</strong> <em>emphasis</em> <a href='target'>link</a></h1>`},
 		expect{"----------", "<hr/>"},
 		expect{"> quote\n> aaa", "<blockquote>quote\naaa\n</blockquote>"},
 		expect{"|a|b|\n|-|-|\n|1|2|\n", "<table>\n<tr><th>a</th><th>b</th></tr>\n<tr><td>1</td><td>2</td></tr>\n</table>"},
@@ -101,6 +104,35 @@ func TestDirectives(t *testing.T) {
 	}
 	if body != "**hello**\n" {
 		t.Errorf("got body %q", body)
+	}
+}
+
+func TestInlineDirectives(t *testing.T) {
+	md := NewMarkdown()
+	md.RegisterDirective("badge", func(d *DirectiveContext) error {
+		if !d.Inline || d.Name != "badge" || d.Argument != "warning" {
+			t.Fatalf("unexpected directive context: %#v", d)
+		}
+		body, err := io.ReadAll(d.Content)
+		if err != nil {
+			return err
+		}
+		n := d.Writer.Span("badge-warning")
+		d.Writer.Write(string(body))
+		d.Writer.End(n)
+		return nil
+	})
+
+	var out bytes.Buffer
+	writer := NewHTMLWriter(&out)
+	if err := md.Convert(bufio.NewScanner(strings.NewReader(":badge[body]{warning}")), writer); err != nil {
+		t.Fatal(err)
+	}
+	writer.Close()
+
+	want := "<p><span class='badge-warning'>body</span></p>"
+	if got := strings.TrimSpace(out.String()); got != want {
+		t.Fatalf("got %q, want %q", got, want)
 	}
 }
 

@@ -17,8 +17,11 @@ func (w *PlainWriter) Block(className string) int {
 	return 0
 }
 
-func (w *PlainWriter) Heading(text string, level int) int {
-	io.WriteString(w.writer, text+"\n")
+func (w *PlainWriter) Span(className string) int {
+	return 0
+}
+
+func (w *PlainWriter) Heading(level int) int {
 	return 0
 }
 

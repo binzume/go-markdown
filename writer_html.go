@@ -42,15 +42,20 @@ func (w *HTMLWriter) Block(className string) int {
 	return w.closeTag("</div>\n")
 }
 
+func (w *HTMLWriter) Span(className string) int {
+	io.WriteString(w.writer, buildTag("<span", ">", kv{"class", className}))
+	return w.closeTag("</span>")
+}
+
 func (w *HTMLWriter) simple(t string) int {
 	io.WriteString(w.writer, "<"+t+">")
 	return w.closeTag("</" + t + ">")
 }
 
-func (w *HTMLWriter) Heading(text string, level int) int {
+func (w *HTMLWriter) Heading(level int) int {
 	h := fmt.Sprint(level)
-	io.WriteString(w.writer, "<h"+h+">"+html.EscapeString(text)+"</h"+h+">\n")
-	return DUMMY_DEPTH
+	io.WriteString(w.writer, "<h"+h+">")
+	return w.closeTag("</h" + h + ">")
 }
 
 func (w *HTMLWriter) Paragraph() int {

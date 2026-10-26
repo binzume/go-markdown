@@ -2,9 +2,6 @@ package markdown
 
 import (
 	"bufio"
-	"bytes"
-	"fmt"
-	"io"
 	"regexp"
 	"strings"
 )
@@ -82,7 +79,7 @@ func (m *HeadingSyntax) TryParse(line string) (int, []string) {
 }
 
 func (m *HeadingSyntax) Render(params []string, s *SyntaxContext) {
-	s.Heading(params[1], len(params[0]))
+	renderHeading(params[1], len(params[0]), s)
 }
 
 type LinkInlineSyntax struct {
@@ -220,7 +217,14 @@ func autolink(params []string, md *SyntaxContext, syntax *RegexSyntax) {
 }
 
 func heading(params []string, md *SyntaxContext, syntax *RegexSyntax) {
-	md.Heading(params[2], len(params[1]))
+	renderHeading(params[2], len(params[1]), md)
+}
+
+func renderHeading(text string, level int, s *SyntaxContext) {
+	n := s.Heading(level)
+	s.inline(text)
+	s.End(n)
+	s.Write("\n")
 }
 
 func hr(params []string, md *SyntaxContext, syntax *RegexSyntax) {
@@ -367,8 +371,6 @@ func quote(params []string, md *SyntaxContext, syntax *RegexSyntax) {
 var defaultInlineElems []Syntax
 var defaultBlockElems []Syntax
 
-var directiveStart = regexp.MustCompile(`^(:{3,})\s*([A-Za-z][A-Za-z0-9_-]*)(?:\s+(.*?))?\s*$`)
-
 func init() {
 	defaultInlineElems = []Syntax{
 		&SimpleInlineSyntax{"~~", "~~", strike},
@@ -377,6 +379,7 @@ func init() {
 		&SimpleInlineSyntax{"``", "``", icode},
 		&SimpleInlineSyntax{"`", "`", icode},
 		&SimpleInlineSyntax{"__", "__", strong},
+		&InlineDirectiveSyntax{},
 		&ReferenceLinkInlineSyntax{"![", true},
 		&ReferenceLinkInlineSyntax{"[", false},
 		&LinkInlineSyntax{"["},
@@ -391,17 +394,6 @@ func init() {
 		&RegexSyntax{"", regexp.MustCompile(`^(\s*)(-|\*|\+|\d+\.)\s(.+)$`), list},
 		&RegexSyntax{"", regexp.MustCompile(`^([-_]\s?){3,}$`), hr},
 	}
-}
-
-// DirectiveHandler handles a fenced block directive.
-type DirectiveHandler func(*DirectiveContext) error
-
-// DirectiveContext is passed to a registered DirectiveHandler.
-type DirectiveContext struct {
-	Name     string
-	Argument string
-	Content  io.Reader
-	Writer   DocWriter
 }
 
 // Markdown config.
@@ -421,11 +413,6 @@ func NewMarkdown() *Markdown {
 	return &Markdown{defaultInlineElems, defaultBlockElems, m, make(map[string]DirectiveHandler)}
 }
 
-// RegisterDirective registers a block directive handler.
-func (m *Markdown) RegisterDirective(name string, handler DirectiveHandler) {
-	m.directives[name] = handler
-}
-
 // SyntaxContext provides the parser and writer state available to a Syntax.
 type SyntaxContext struct {
 	*Markdown
@@ -435,6 +422,7 @@ type SyntaxContext struct {
 	lineBytes  []byte
 	retry      bool
 	references map[string]reference
+	err        error
 }
 
 func (s *SyntaxContext) ReadLine() (string, bool) {
@@ -557,52 +545,6 @@ func (s *SyntaxContext) WriteReferenceImage(alt, label string) bool {
 	return true
 }
 
-func parseDirectiveStart(line string) (name string, argument string, fence int, ok bool) {
-	match := directiveStart.FindStringSubmatch(line)
-	if len(match) == 0 {
-		return "", "", 0, false
-	}
-
-	return match[2], strings.TrimSpace(match[3]), len(match[1]), true
-}
-
-type DelimiterReader struct {
-	scanner   *SyntaxContext
-	delimiter []byte
-	buf       []byte
-	done      bool
-	found     bool
-}
-
-func (r *DelimiterReader) Read(p []byte) (n int, err error) {
-	if r.done {
-		if err := r.scanner.Err(); err != nil {
-			return 0, err
-		}
-		return 0, io.EOF
-	}
-	if len(r.buf) == 0 {
-		line, ok := r.scanner.ReadLine()
-		if !ok {
-			r.done = true
-			if err := r.scanner.Err(); err != nil {
-				return 0, err
-			}
-			return 0, io.EOF
-		}
-		if bytes.Equal(bytes.TrimSpace([]byte(line)), r.delimiter) {
-			r.done = true
-			r.found = true
-			return 0, io.EOF
-		}
-		r.buf = r.scanner.lineBytes
-		r.buf = append(r.buf, '\n')
-	}
-	l := copy(p, r.buf)
-	r.buf = r.buf[l:]
-	return l, nil
-}
-
 func (s *SyntaxContext) inline(text string) {
 	writer := s.DocWriter
 	for pos := 0; pos < len(text); pos++ {
@@ -651,44 +593,8 @@ func (s *SyntaxContext) block() error {
 			}
 			writer.Write("\n")
 
-			closingFence := strings.Repeat(":", fence)
-			content := &DelimiterReader{
-				scanner:   s,
-				delimiter: []byte(closingFence),
-			}
-			consumed := false
-			if handler := s.directives[name]; handler != nil {
-				ctx := &DirectiveContext{
-					Name:     name,
-					Argument: argument,
-					Content:  content,
-					Writer:   writer,
-				}
-				if err := handler(ctx); err != nil {
-					return fmt.Errorf("directive %q: %w", name, err)
-				}
-			} else {
-				n := writer.Block("")
-				child := &SyntaxContext{
-					Markdown:   s.Markdown,
-					Scanner:    bufio.NewScanner(content),
-					DocWriter:  writer,
-					references: s.references,
-				}
-				err := child.block()
-				writer.End(n)
-				if err != nil {
-					return fmt.Errorf("directive %q: %w", name, err)
-				}
-				consumed = true
-			}
-			if !consumed {
-				if _, err := io.Copy(io.Discard, content); err != nil {
-					return err
-				}
-			}
-			if !content.found {
-				return fmt.Errorf("unclosed directive %q", name)
+			if err := s.directive(name, argument, fence); err != nil {
+				return err
 			}
 			continue
 		}
@@ -704,6 +610,9 @@ func (s *SyntaxContext) block() error {
 				}
 				writer.Write("\n")
 				matcher.Render(params, s)
+				if s.err != nil {
+					return s.err
+				}
 				text = ""
 				break
 			}
@@ -721,6 +630,9 @@ func (s *SyntaxContext) block() error {
 			s.Write("\n")
 		}
 		s.inline(text)
+		if s.err != nil {
+			return s.err
+		}
 	}
 	return s.Err()
 }
