@@ -32,14 +32,20 @@ func TestConvert(t *testing.T) {
 		expect{`prefix :unknown[**body**]{argument}`, "<p>prefix <span><strong>body</strong></span></p>"},
 		expect{`[link](test.png)`, "<p><a href='test.png'>link</a></p>"},
 		expect{`[link](test.png "test")`, "<p><a href='test.png' title='test'>link</a></p>"},
+		expect{`[link](test.png){.className}`, "<p><a href='test.png' class='className'>link</a></p>"},
+		expect{`[link](test.png){#linkId .className}`, "<p><a href='test.png' class='className' id='linkId'>link</a></p>"},
 		expect{`![img](test.png)`, "<p><img src='test.png' alt='img'/></p>"},
 		expect{`![img](test.png "test")`, "<p><img src='test.png' alt='img' title='test'/></p>"},
+		expect{`![img](test.png){.thumbnail}`, "<p><img src='test.png' alt='img' class='thumbnail'/></p>"},
+		expect{`![img](test.png){#imageId .thumbnail}`, "<p><img src='test.png' alt='img' class='thumbnail' id='imageId'/></p>"},
 		expect{`[![img](test.png)](test)`, "<p><a href='test'><img src='test.png' alt='img'/></a></p>"},
 		expect{`[![img](test.png) ![img](test.png)](test)`, "<p><a href='test'><img src='test.png' alt='img'/> <img src='test.png' alt='img'/></a></p>"},
 
 		// block
 		expect{"# hello", `<h1>hello</h1>`},
 		expect{"## hello", `<h2>hello</h2>`},
+		expect{"## Hedding {#elemId}", `<h2 id='elemId'>Hedding</h2>`},
+		expect{"## Hedding {#elemId .title}", `<h2 class='title' id='elemId'>Hedding</h2>`},
 		expect{`# **strong** *emphasis* [link](target)`, `<h1><strong>strong</strong> <em>emphasis</em> <a href='target'>link</a></h1>`},
 		expect{"----------", "<hr/>"},
 		expect{"> quote\n> aaa", "<blockquote>quote\naaa\n</blockquote>"},
@@ -117,7 +123,7 @@ func TestInlineDirectives(t *testing.T) {
 		if err != nil {
 			return err
 		}
-		n := d.Writer.Span("badge-warning")
+		n := d.Writer.Span(MarkupData{Attributes: Attributes(".badge-warning")})
 		d.Writer.Write(string(body))
 		d.Writer.End(n)
 		return nil
@@ -133,6 +139,39 @@ func TestInlineDirectives(t *testing.T) {
 	want := "<p><span class='badge-warning'>body</span></p>"
 	if got := strings.TrimSpace(out.String()); got != want {
 		t.Fatalf("got %q, want %q", got, want)
+	}
+}
+
+func TestMarkupDataIDs(t *testing.T) {
+	var out bytes.Buffer
+	writer := NewHTMLWriter(&out)
+
+	n := writer.Span(MarkupData{Attributes: Attributes("#span-id")})
+	writer.End(n)
+	n = writer.Block(MarkupData{Attributes: Attributes("#block-id")})
+	writer.End(n)
+	writer.Close()
+
+	want := "<span id='span-id'></span><div id='block-id'>\n</div>\n"
+	if got := out.String(); got != want {
+		t.Fatalf("got %q, want %q", got, want)
+	}
+}
+
+func TestAttributes(t *testing.T) {
+	id, className := Attributes("#elemId .title .wide").GetIdAndClassName()
+	if id != "elemId" || className != "title wide" {
+		t.Fatalf("got id=%q, className=%q", id, className)
+	}
+
+	id, className = Attributes("unknown=value").GetIdAndClassName()
+	if id != "" || className != "" {
+		t.Fatalf("invalid attributes returned id=%q, className=%q", id, className)
+	}
+
+	id, className = Attributes("{#elemId .title}").GetIdAndClassName()
+	if id != "elemId" || className != "title" {
+		t.Fatalf("braced attributes returned id=%q, className=%q", id, className)
 	}
 }
 

@@ -13,15 +13,15 @@ func NewPlainWriter(writer io.Writer) *PlainWriter {
 	return &PlainWriter{writer}
 }
 
-func (w *PlainWriter) Block(className string) int {
+func (w *PlainWriter) Block(data MarkupData) int {
 	return 0
 }
 
-func (w *PlainWriter) Span(className string) int {
+func (w *PlainWriter) Span(data MarkupData) int {
 	return 0
 }
 
-func (w *PlainWriter) Heading(level int) int {
+func (w *PlainWriter) Heading(level int, data MarkupData) int {
 	return 0
 }
 
@@ -30,12 +30,12 @@ func (w *PlainWriter) Paragraph() int {
 	return 0
 }
 
-func (w *PlainWriter) Link(url string, title string, opt int) int {
+func (w *PlainWriter) Link(url string, title string, data MarkupData) int {
 	io.WriteString(w.writer, url)
 	return 0
 }
 
-func (w *PlainWriter) Image(url string, title, alt string, opt int) int {
+func (w *PlainWriter) Image(url string, title, alt string, data MarkupData) int {
 	io.WriteString(w.writer, alt+"("+url+")")
 	return 0
 }
@@ -97,7 +97,7 @@ func (w *PlainWriter) CodeBlock(lang string, title string) int {
 	return 0
 }
 
-func (w *PlainWriter) WriteStyle(text string, className string, color string, flags int) {
+func (w *PlainWriter) WriteStyle(text string, data MarkupData) {
 	w.Write(text)
 }
 

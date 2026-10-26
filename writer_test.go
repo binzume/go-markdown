@@ -46,16 +46,16 @@ func TestPlainWriter(t *testing.T) {
 		// TODO:
 		tests := []expectfun{
 			expectfun{func(w DocWriter) { w.Write("Hello") }, "Hello"},
-			expectfun{func(w DocWriter) { w.WriteStyle("Hello", "", "", 0) }, "Hello"},
+			expectfun{func(w DocWriter) { w.WriteStyle("Hello", MarkupData{}) }, "Hello"},
 			expectfun{func(w DocWriter) { w.Strike() }, ""},
 			expectfun{func(w DocWriter) { w.Emphasis() }, ""},
 			expectfun{func(w DocWriter) { w.Strong() }, ""},
 			expectfun{func(w DocWriter) { w.Code() }, ""},
-			expectfun{func(w DocWriter) { w.Block("note") }, ""},
-			expectfun{func(w DocWriter) { w.Link("http://example.com", "test", 0) }, "http://example.com"},
-			expectfun{func(w DocWriter) { w.Image("http://example.com/a.png", "", "test", 0) }, "test(http://example.com/a.png)"},
+			expectfun{func(w DocWriter) { w.Block(MarkupData{Attributes: Attributes(".note")}) }, ""},
+			expectfun{func(w DocWriter) { w.Link("http://example.com", "test", MarkupData{}) }, "http://example.com"},
+			expectfun{func(w DocWriter) { w.Image("http://example.com/a.png", "", "test", MarkupData{}) }, "test(http://example.com/a.png)"},
 			expectfun{func(w DocWriter) {
-				n := w.Heading(1)
+				n := w.Heading(1, MarkupData{})
 				w.Write("test")
 				w.End(n)
 				w.Write("\n")

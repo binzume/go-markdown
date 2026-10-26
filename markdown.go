@@ -109,7 +109,20 @@ retry:
 	if p2 < 0 {
 		return -1, nil
 	}
-	return p2 + 1, []string{line[len(m.Start):p1], line[p1+2 : p2]}
+
+	end := p2 + 1
+	attributes := ""
+	if strings.HasPrefix(line[end:], "{") {
+		if attrEnd := strings.IndexByte(line[end+1:], '}'); attrEnd >= 0 {
+			attrEnd += end + 1
+			if _, ok := Attributes(line[end+1 : attrEnd]).markupData(); ok {
+				attributes = line[end+1 : attrEnd]
+				end = attrEnd + 1
+			}
+		}
+	}
+
+	return end, []string{line[len(m.Start):p1], line[p1+2 : p2], attributes}
 }
 
 func (m *LinkInlineSyntax) Render(params []string, md *SyntaxContext) {
@@ -119,10 +132,18 @@ func (m *LinkInlineSyntax) Render(params []string, md *SyntaxContext) {
 		title = strings.Trim(url[1], "\" ")
 	}
 	if m.Start == "![" {
-		n := md.Image(url[0], title, params[0], 0)
+		data := MarkupData{}
+		if len(params) > 2 {
+			data, _ = Attributes(params[2]).markupData()
+		}
+		n := md.Image(url[0], title, params[0], data)
 		md.End(n)
 	} else {
-		n := md.Link(url[0], title, 0)
+		data := MarkupData{}
+		if len(params) > 2 {
+			data, _ = Attributes(params[2]).markupData()
+		}
+		n := md.Link(url[0], title, data)
 		md.inline(params[0])
 		md.End(n)
 	}
@@ -211,7 +232,7 @@ func icode(text string, md *SyntaxContext, syntax *SimpleInlineSyntax) {
 }
 
 func autolink(params []string, md *SyntaxContext, syntax *RegexSyntax) {
-	n := md.Link(params[0], "", 0)
+	n := md.Link(params[0], "", MarkupData{})
 	md.Write(params[0])
 	md.End(n)
 }
@@ -221,10 +242,36 @@ func heading(params []string, md *SyntaxContext, syntax *RegexSyntax) {
 }
 
 func renderHeading(text string, level int, s *SyntaxContext) {
-	n := s.Heading(level)
+	text, data := parseHeadingAttributes(text)
+	n := s.Heading(level, data)
 	s.inline(text)
 	s.End(n)
 	s.Write("\n")
+}
+
+// parseHeadingAttributes removes a trailing attribute block from a heading.
+// Currently IDs and CSS classes are supported using the usual Markdown
+// attribute syntax, for example: "Heading {#heading-id .section}".
+func parseHeadingAttributes(text string) (string, MarkupData) {
+	trimmed := strings.TrimRight(text, " \t\r\f")
+	if !strings.HasSuffix(trimmed, "}") {
+		return text, MarkupData{}
+	}
+
+	open := strings.LastIndexByte(trimmed, '{')
+	if open <= 0 || !isWhitespace(trimmed[open-1]) {
+		return text, MarkupData{}
+	}
+
+	data, ok := Attributes(trimmed[open+1 : len(trimmed)-1]).markupData()
+	if !ok {
+		return text, MarkupData{}
+	}
+	return strings.TrimRight(trimmed[:open], " \t\r\f"), data
+}
+
+func isWhitespace(c byte) bool {
+	return c == ' ' || c == '\t' || c == '\r' || c == '\f'
 }
 
 func hr(params []string, md *SyntaxContext, syntax *RegexSyntax) {
@@ -284,15 +331,15 @@ func code(params []string, s *SyntaxContext, syntax *RegexSyntax) {
 	for typ, token := tokenizer.Read(); typ != CODE_EOF; typ, token = tokenizer.Read() {
 		switch typ {
 		case CODE_Keyword:
-			s.WriteStyle(token, "code_key", "", 0)
+			s.WriteStyle(token, MarkupData{Attributes: Attributes(".code_key")})
 		case CODE_Number:
-			s.WriteStyle(token, "code_num", "", 0)
+			s.WriteStyle(token, MarkupData{Attributes: Attributes(".code_num")})
 		case CODE_String:
-			s.WriteStyle(token, "code_str", "", 0)
+			s.WriteStyle(token, MarkupData{Attributes: Attributes(".code_str")})
 		case CODE_Comment:
-			s.WriteStyle(token, "code_comment", "", 0)
+			s.WriteStyle(token, MarkupData{Attributes: Attributes(".code_comment")})
 		case CODE_Ident:
-			s.WriteStyle(token, "code_ident", "", 0)
+			s.WriteStyle(token, MarkupData{Attributes: Attributes(".code_ident")})
 		default:
 			s.Write(token)
 		}
@@ -527,7 +574,7 @@ func (s *SyntaxContext) WriteReferenceLink(text, label string) bool {
 	if !ok {
 		return false
 	}
-	n := s.Link(ref.URL, ref.Title, 0)
+	n := s.Link(ref.URL, ref.Title, MarkupData{})
 	s.inline(text)
 	s.End(n)
 	return true
@@ -540,7 +587,7 @@ func (s *SyntaxContext) WriteReferenceImage(alt, label string) bool {
 	if !ok {
 		return false
 	}
-	n := s.Image(ref.URL, ref.Title, alt, 0)
+	n := s.Image(ref.URL, ref.Title, alt, MarkupData{})
 	s.End(n)
 	return true
 }

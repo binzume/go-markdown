@@ -97,7 +97,7 @@ func (s *SyntaxContext) renderInlineDirective(name, body, argument string) {
 		return
 	}
 
-	n := s.Span("")
+	n := s.Span(MarkupData{})
 	s.inline(body)
 	s.End(n)
 }
@@ -167,7 +167,7 @@ func (s *SyntaxContext) directive(name, argument string, fence int) error {
 			return fmt.Errorf("directive %q: %w", name, err)
 		}
 	} else {
-		n := s.Block("")
+		n := s.Block(MarkupData{})
 		child := &SyntaxContext{
 			Markdown:   s.Markdown,
 			Scanner:    bufio.NewScanner(content),

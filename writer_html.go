@@ -37,13 +37,15 @@ func (w *HTMLWriter) closeTag(t string) int {
 	return len(w.closetags) - 1
 }
 
-func (w *HTMLWriter) Block(className string) int {
-	io.WriteString(w.writer, buildTag("<div", ">\n", kv{"class", className}))
+func (w *HTMLWriter) Block(data MarkupData) int {
+	id, className := data.Attributes.GetIdAndClassName()
+	io.WriteString(w.writer, buildTag("<div", ">\n", kv{"class", className}, kv{"id", id}))
 	return w.closeTag("</div>\n")
 }
 
-func (w *HTMLWriter) Span(className string) int {
-	io.WriteString(w.writer, buildTag("<span", ">", kv{"class", className}))
+func (w *HTMLWriter) Span(data MarkupData) int {
+	id, className := data.Attributes.GetIdAndClassName()
+	io.WriteString(w.writer, buildTag("<span", ">", kv{"class", className}, kv{"id", id}))
 	return w.closeTag("</span>")
 }
 
@@ -52,9 +54,10 @@ func (w *HTMLWriter) simple(t string) int {
 	return w.closeTag("</" + t + ">")
 }
 
-func (w *HTMLWriter) Heading(level int) int {
+func (w *HTMLWriter) Heading(level int, data MarkupData) int {
 	h := fmt.Sprint(level)
-	io.WriteString(w.writer, "<h"+h+">")
+	id, className := data.Attributes.GetIdAndClassName()
+	io.WriteString(w.writer, buildTag("<h"+h, ">", kv{"class", className}, kv{"id", id}))
 	return w.closeTag("</h" + h + ">")
 }
 
@@ -63,13 +66,15 @@ func (w *HTMLWriter) Paragraph() int {
 	return w.closeTag("</p>\n")
 }
 
-func (w *HTMLWriter) Link(url string, title string, opt int) int {
-	io.WriteString(w.writer, buildTag("<a", ">", kv{"href", url}, kv{"title", title}))
+func (w *HTMLWriter) Link(url string, title string, data MarkupData) int {
+	id, className := data.Attributes.GetIdAndClassName()
+	io.WriteString(w.writer, buildTag("<a", ">", kv{"href", url}, kv{"title", title}, kv{"class", className}, kv{"id", id}))
 	return w.closeTag("</a>")
 }
 
-func (w *HTMLWriter) Image(url string, title, alt string, opt int) int {
-	io.WriteString(w.writer, buildTag("<img", "/>", kv{"src", url}, kv{"alt", alt}, kv{"title", title}))
+func (w *HTMLWriter) Image(url string, title, alt string, data MarkupData) int {
+	id, className := data.Attributes.GetIdAndClassName()
+	io.WriteString(w.writer, buildTag("<img", "/>", kv{"src", url}, kv{"alt", alt}, kv{"title", title}, kv{"class", className}, kv{"id", id}))
 	return DUMMY_DEPTH
 }
 
@@ -149,12 +154,9 @@ func (w *HTMLWriter) CodeBlock(lang string, title string) int {
 	return w.closeTag("</code></pre>\n")
 }
 
-func (w *HTMLWriter) WriteStyle(text string, className string, color string, flags int) {
-	style := ""
-	if color != "" {
-		style += "color:" + color
-	}
-	io.WriteString(w.writer, buildTag("<span", ">", kv{"class", className}, kv{"style", style}))
+func (w *HTMLWriter) WriteStyle(text string, data MarkupData) {
+	id, className := data.Attributes.GetIdAndClassName()
+	io.WriteString(w.writer, buildTag("<span", ">", kv{"class", className}, kv{"id", id}))
 	w.Write(text)
 	w.writer.Write([]byte("</span>"))
 }

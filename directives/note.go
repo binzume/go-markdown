@@ -15,7 +15,7 @@ func RegisterNote(md *markdown.Markdown) {
 			level = fields[0]
 		}
 
-		n := d.Writer.Block("note-" + level)
+		n := d.Writer.Block(markdown.MarkupData{Attributes: markdown.Attributes(".note-" + level)})
 		err := md.Convert(bufio.NewScanner(d.Content), d.Writer)
 		d.Writer.End(n)
 		return err
