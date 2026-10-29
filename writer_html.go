@@ -8,14 +8,25 @@ import (
 
 // HTMLWriter : impl for DocWriter
 type HTMLWriter struct {
-	writer    io.Writer
-	closetags []string
+	writer        io.Writer
+	closetags     []string
+	HeadingOffset int
 }
 
 var DUMMY_DEPTH = 999999
 
 func NewHTMLWriter(writer io.Writer) *HTMLWriter {
-	return &HTMLWriter{writer, make([]string, 10)}
+	return NewHTMLWriterWithHeadingOffset(writer, 0)
+}
+
+// NewHTMLWriterWithHeadingOffset creates an HTMLWriter that adds offset to
+// every heading level. For example, an offset of 1 renders # as <h2>.
+func NewHTMLWriterWithHeadingOffset(writer io.Writer, offset int) *HTMLWriter {
+	return &HTMLWriter{
+		writer:        writer,
+		closetags:     make([]string, 10),
+		HeadingOffset: offset,
+	}
 }
 
 type kv struct {
@@ -55,6 +66,7 @@ func (w *HTMLWriter) simple(t string) int {
 }
 
 func (w *HTMLWriter) Heading(level int, data MarkupData) int {
+	level += w.HeadingOffset
 	h := fmt.Sprint(level)
 	id, className := data.Attributes.GetIdAndClassName()
 	io.WriteString(w.writer, buildTag("<h"+h, ">", kv{"class", className}, kv{"id", id}))

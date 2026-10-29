@@ -30,6 +30,33 @@ func TestHtmlWriter(t *testing.T) {
 	}
 }
 
+func TestHTMLWriterHeadingOffset(t *testing.T) {
+	var out bytes.Buffer
+	writer := NewHTMLWriterWithHeadingOffset(&out, 1)
+
+	n := writer.Heading(1, MarkupData{})
+	writer.Write("Heading")
+	writer.End(n)
+
+	if got, want := out.String(), "<h2>Heading</h2>"; got != want {
+		t.Fatalf("got %q, want %q", got, want)
+	}
+}
+
+func TestHTMLWriterHeadingOffsetField(t *testing.T) {
+	var out bytes.Buffer
+	writer := NewHTMLWriter(&out)
+	writer.HeadingOffset = 1
+
+	n := writer.Heading(2, MarkupData{})
+	writer.Write("Heading")
+	writer.End(n)
+
+	if got, want := out.String(), "<h3>Heading</h3>"; got != want {
+		t.Fatalf("got %q, want %q", got, want)
+	}
+}
+
 func TestPlainWriter(t *testing.T) {
 	{
 		var out bytes.Buffer
