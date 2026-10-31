@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"html"
 	"io"
+	"strings"
 )
 
 // HTMLWriter : impl for DocWriter
@@ -11,6 +12,9 @@ type HTMLWriter struct {
 	writer        io.Writer
 	closetags     []string
 	HeadingOffset int
+	// AllowNonHTTPURLSchemes permits URL schemes other than http and https.
+	// It is disabled by default.
+	AllowNonHTTPURLSchemes bool
 }
 
 var DUMMY_DEPTH = 999999
@@ -78,15 +82,32 @@ func (w *HTMLWriter) Paragraph() int {
 	return w.closeTag("</p>\n")
 }
 
+// sanitizeURL returns an empty string for URLs with a scheme other than
+// HTTP(S), unless non-HTTP schemes have been explicitly enabled. It only
+// checks the URL prefix; URLs without a scheme, such as relative URLs, remain
+// allowed.
+func (w *HTMLWriter) sanitizeURL(rawURL string) string {
+	if w.AllowNonHTTPURLSchemes {
+		return rawURL
+	}
+
+	colon := strings.IndexByte(rawURL, ':')
+	if colon > 0 && !strings.ContainsAny(rawURL[:colon], "/?# \t\r\n") &&
+		!strings.EqualFold(rawURL[:colon], "http") && !strings.EqualFold(rawURL[:colon], "https") {
+		return ""
+	}
+	return rawURL
+}
+
 func (w *HTMLWriter) Link(url string, title string, data MarkupData) int {
 	id, className := data.Attributes.GetIdAndClassName()
-	io.WriteString(w.writer, buildTag("<a", ">", kv{"href", url}, kv{"title", title}, kv{"class", className}, kv{"id", id}))
+	io.WriteString(w.writer, buildTag("<a", ">", kv{"href", w.sanitizeURL(url)}, kv{"title", title}, kv{"class", className}, kv{"id", id}))
 	return w.closeTag("</a>")
 }
 
 func (w *HTMLWriter) Image(url string, title, alt string, data MarkupData) int {
 	id, className := data.Attributes.GetIdAndClassName()
-	io.WriteString(w.writer, buildTag("<img", "/>", kv{"src", url}, kv{"alt", alt}, kv{"title", title}, kv{"class", className}, kv{"id", id}))
+	io.WriteString(w.writer, buildTag("<img", "/>", kv{"src", w.sanitizeURL(url)}, kv{"alt", alt}, kv{"title", title}, kv{"class", className}, kv{"id", id}))
 	return DUMMY_DEPTH
 }
 

@@ -57,6 +57,34 @@ func TestHTMLWriterHeadingOffsetField(t *testing.T) {
 	}
 }
 
+func TestHTMLWriterURLSchemePolicy(t *testing.T) {
+	var out bytes.Buffer
+	writer := NewHTMLWriter(&out)
+
+	link := writer.Link("javascript:alert(1)", "", MarkupData{})
+	writer.End(link)
+	image := writer.Image("data:image/svg+xml,test", "", "test", MarkupData{})
+	writer.End(image)
+
+	want := "<a></a><img alt='test'/>"
+	if got := out.String(); got != want {
+		t.Fatalf("got %q, want %q", got, want)
+	}
+
+	out.Reset()
+	writer = NewHTMLWriter(&out)
+	writer.AllowNonHTTPURLSchemes = true
+	link = writer.Link("javascript:alert(1)", "", MarkupData{})
+	writer.End(link)
+	image = writer.Image("data:image/svg+xml,test", "", "test", MarkupData{})
+	writer.End(image)
+
+	want = "<a href='javascript:alert(1)'></a><img src='data:image/svg+xml,test' alt='test'/>"
+	if got := out.String(); got != want {
+		t.Fatalf("got %q, want %q", got, want)
+	}
+}
+
 func TestPlainWriter(t *testing.T) {
 	{
 		var out bytes.Buffer

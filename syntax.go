@@ -65,6 +65,9 @@ func (m *HeadingSyntax) TryParse(line string) (int, []string) {
 	if level == 0 {
 		return -1, nil
 	}
+	if level < len(line) && !isWhitespace(line[level]) {
+		return -1, nil
+	}
 
 	content := strings.TrimLeft(line[level:], " \t\r\f")
 	return len(line), []string{line[:level], content}
@@ -94,7 +97,7 @@ retry:
 		}
 	}
 	p2 := strings.Index(line[p1:], ")") + p1
-	if p2 < 0 {
+	if p2 < p1 {
 		return -1, nil
 	}
 

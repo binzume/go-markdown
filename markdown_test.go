@@ -41,9 +41,12 @@ func TestConvert(t *testing.T) {
 		expect{`![img](test.png){#imageId .thumbnail}`, "<p><img src='test.png' alt='img' class='thumbnail' id='imageId'/></p>"},
 		expect{`[![img](test.png)](test)`, "<p><a href='test'><img src='test.png' alt='img'/></a></p>"},
 		expect{`[![img](test.png) ![img](test.png)](test)`, "<p><a href='test'><img src='test.png' alt='img'/> <img src='test.png' alt='img'/></a></p>"},
+		expect{`[link](test.png`, `<p>[link](test.png</p>`},
+		expect{`[](test.png`, `<p>[](test.png</p>`},
 
 		// block
 		expect{"# hello", `<h1>hello</h1>`},
+		expect{"#hello", `<p>#hello</p>`},
 		expect{"## hello", `<h2>hello</h2>`},
 		expect{"## Hedding {#elemId}", `<h2 id='elemId'>Hedding</h2>`},
 		expect{"## Hedding {#elemId .title}", `<h2 class='title' id='elemId'>Hedding</h2>`},
