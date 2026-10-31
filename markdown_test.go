@@ -18,6 +18,7 @@ func TestConvert(t *testing.T) {
 	tests := []expect{
 		// inline
 		expect{"hello\nworld", "<p>hello\nworld</p>"},
+		expect{"hello  \nworld", "<p>hello<br>\nworld</p>"},
 		expect{"hello\n\nworld", "<p>hello</p>\n<p>world</p>"},
 		expect{`~~hello~~`, `<p><strike>hello</strike></p>`},
 		expect{`**hello**`, `<p><strong>hello</strong></p>`},
@@ -51,6 +52,8 @@ func TestConvert(t *testing.T) {
 		expect{"> quote\n> aaa", "<blockquote>quote\naaa\n</blockquote>"},
 		expect{"|a|b|\n|-|-|\n|1|2|\n", "<table>\n<tr><th>a</th><th>b</th></tr>\n<tr><td>1</td><td>2</td></tr>\n</table>"},
 		expect{"- item1\n- item2\n", "<ul>\n<li>item1</li>\n<li>item2</li>\n</ul>"},
+		expect{"- aaaa\n  bbbb\n- cccc", "<ul>\n<li>aaaa\nbbbb</li>\n<li>cccc</li>\n</ul>"},
+		expect{"- aaaa  \n  bbbb\n- cccc", "<ul>\n<li>aaaa<br>\nbbbb</li>\n<li>cccc</li>\n</ul>"},
 		expect{"1. item1\n2. item2\n", "<ol>\n<li>item1</li>\n<li>item2</li>\n</ol>"},
 		expect{"- [ ] hoge", "<ul>\n<li><input type='checkbox'/>hoge</li>\n</ul>"},
 		expect{"- [x] fuga", "<ul>\n<li><input type='checkbox' checked='checked'/>fuga</li>\n</ul>"},
@@ -77,7 +80,7 @@ func TestConvert(t *testing.T) {
 		in := strings.NewReader(test.input)
 		var out bytes.Buffer
 		writer := NewHTMLWriter(&out)
-		err := Convert(bufio.NewScanner(in), writer)
+		err := Convert(in, writer)
 		if err != nil {
 			t.Errorf("error %v", err)
 		}
@@ -104,7 +107,7 @@ func TestDirectives(t *testing.T) {
 
 	var out bytes.Buffer
 	writer := NewHTMLWriter(&out)
-	err := md.Convert(bufio.NewScanner(strings.NewReader(":::note warning compact\n**hello**\n:::")), writer)
+	err := md.Convert(strings.NewReader(":::note warning compact\n**hello**\n:::"), writer)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -131,7 +134,7 @@ func TestInlineDirectives(t *testing.T) {
 
 	var out bytes.Buffer
 	writer := NewHTMLWriter(&out)
-	if err := md.Convert(bufio.NewScanner(strings.NewReader(":badge[body]{warning}")), writer); err != nil {
+	if err := md.Convert(strings.NewReader(":badge[body]{warning}"), writer); err != nil {
 		t.Fatal(err)
 	}
 	writer.Close()
@@ -181,7 +184,7 @@ func TestReferenceLinks(t *testing.T) {
 [full][DOCS] [docs][] [docs] ![logo][docs]`
 	var out bytes.Buffer
 	writer := NewHTMLWriter(&out)
-	if err := Convert(bufio.NewScanner(strings.NewReader(input)), writer); err != nil {
+	if err := Convert(strings.NewReader(input), writer); err != nil {
 		t.Fatal(err)
 	}
 	writer.Close()
@@ -196,7 +199,7 @@ func TestUnknownDirectiveRendersAsDiv(t *testing.T) {
 	input := ":::unknown\n**hello**\n:::"
 	var out bytes.Buffer
 	writer := NewHTMLWriter(&out)
-	if err := Convert(bufio.NewScanner(strings.NewReader(input)), writer); err != nil {
+	if err := Convert(strings.NewReader(input), writer); err != nil {
 		t.Fatal(err)
 	}
 	writer.Close()
@@ -221,7 +224,7 @@ func TestNestedDirectivesUseLongerFences(t *testing.T) {
 	var out bytes.Buffer
 	input := "::::outer\n:::inner\ninside\n:::\nafter\n::::"
 	writer := NewHTMLWriter(&out)
-	if err := md.Convert(bufio.NewScanner(strings.NewReader(input)), writer); err != nil {
+	if err := md.Convert(strings.NewReader(input), writer); err != nil {
 		t.Fatal(err)
 	}
 	if !strings.Contains(body, ":::inner\ninside\n:::") {
@@ -233,7 +236,7 @@ func TestUnclosedDirective(t *testing.T) {
 	md := NewMarkdown()
 	md.RegisterDirective("note", func(d *DirectiveContext) error { return nil })
 	var out bytes.Buffer
-	err := md.Convert(bufio.NewScanner(strings.NewReader(":::note\nbody")), NewHTMLWriter(&out))
+	err := md.Convert(strings.NewReader(":::note\nbody"), NewHTMLWriter(&out))
 	if err == nil || !strings.Contains(err.Error(), "unclosed directive") {
 		t.Fatalf("expected unclosed directive error, got %v", err)
 	}

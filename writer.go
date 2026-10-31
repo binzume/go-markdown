@@ -28,6 +28,7 @@ type DocWriter interface {
 	CheckBox(checked bool) int
 	QuoteBlock() int
 	CodeBlock(lang string, title string) int
+	NewLine()
 	End(lv int)
 	Write(text string)
 	WriteStyle(text string, data MarkupData)

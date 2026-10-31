@@ -166,6 +166,10 @@ func (w *HTMLWriter) CodeBlock(lang string, title string) int {
 	return w.closeTag("</code></pre>\n")
 }
 
+func (w *HTMLWriter) NewLine() {
+	io.WriteString(w.writer, "<br>\n")
+}
+
 func (w *HTMLWriter) WriteStyle(text string, data MarkupData) {
 	id, className := data.Attributes.GetIdAndClassName()
 	io.WriteString(w.writer, buildTag("<span", ">", kv{"class", className}, kv{"id", id}))

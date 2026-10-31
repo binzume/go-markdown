@@ -97,6 +97,10 @@ func (w *PlainWriter) CodeBlock(lang string, title string) int {
 	return 0
 }
 
+func (w *PlainWriter) NewLine() {
+	io.WriteString(w.writer, "\n")
+}
+
 func (w *PlainWriter) WriteStyle(text string, data MarkupData) {
 	w.Write(text)
 }

@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bufio"
 	"bytes"
 	"io"
 	"os"
@@ -46,16 +45,12 @@ func MdRender(in io.Reader) string {
 	md := markdown.NewMarkdown()
 	directives.RegisterNote(md)
 
-	scanner := bufio.NewScanner(in)
 	writer := markdown.NewHTMLWriter(&out)
-	err := md.Convert(scanner, writer)
+	err := md.Convert(in, writer)
 	if err != nil {
 		panic(err)
 	}
 	writer.Close()
 
-	if err := scanner.Err(); err != nil {
-		panic(err)
-	}
 	return out.String()
 }

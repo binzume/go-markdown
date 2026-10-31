@@ -1,7 +1,6 @@
 package directives
 
 import (
-	"bufio"
 	"strings"
 
 	markdown "github.com/binzume/go-markdown"
@@ -16,7 +15,7 @@ func RegisterNote(md *markdown.Markdown) {
 		}
 
 		n := d.Writer.Block(markdown.MarkupData{Attributes: markdown.Attributes(".note-" + level)})
-		err := md.Convert(bufio.NewScanner(d.Content), d.Writer)
+		err := md.Convert(d.Content, d.Writer)
 		d.Writer.End(n)
 		return err
 	})
