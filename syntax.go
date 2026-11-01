@@ -59,7 +59,7 @@ func (m *HeadingSyntax) Prefix() string { return "#" }
 
 func (m *HeadingSyntax) TryParse(line string) (int, []string) {
 	level := 0
-	for level < len(line) && level < 4 && line[level] == '#' {
+	for level < len(line) && level < 6 && line[level] == '#' {
 		level++
 	}
 	if level == 0 {
