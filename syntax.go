@@ -350,6 +350,13 @@ func code(params []string, s *SyntaxContext, syntax *RegexSyntax) {
 
 func table(params []string, md *SyntaxContext, syntax *RegexSyntax) {
 	align := make(map[int]int, len(params))
+	markedHeaders := false
+	for _, cell := range strings.Split(params[1], "|") {
+		if strings.HasPrefix(strings.TrimLeft(cell, " \t"), "# ") {
+			markedHeaders = true
+			break
+		}
+	}
 	if line, ok := md.ReadLine(); ok {
 		t := syntax.Re.FindStringSubmatch(line)
 		if len(t) > 0 {
@@ -375,7 +382,17 @@ func table(params []string, md *SyntaxContext, syntax *RegexSyntax) {
 		text := params[1]
 		nr := md.TableRow()
 		for i, s := range strings.Split(text, "|") {
-			nc := md.TableCell(align[i] | h)
+			flags := align[i]
+			if markedHeaders {
+				cell := strings.TrimLeft(s, " \t")
+				if strings.HasPrefix(cell, "# ") {
+					flags |= 4
+					s = strings.TrimPrefix(cell, "# ")
+				}
+			} else {
+				flags |= h
+			}
+			nc := md.TableCell(flags)
 			md.inline(s)
 			md.End(nc)
 		}
