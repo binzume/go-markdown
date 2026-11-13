@@ -31,12 +31,12 @@ func (w *PlainWriter) Paragraph() int {
 }
 
 func (w *PlainWriter) Link(url string, title string, data MarkupData) int {
-	io.WriteString(w.writer, url)
+	io.WriteString(w.writer, stripURLTabsAndLineBreaks(url))
 	return 0
 }
 
 func (w *PlainWriter) Image(url string, title, alt string, data MarkupData) int {
-	io.WriteString(w.writer, alt+"("+url+")")
+	io.WriteString(w.writer, alt+"("+stripURLTabsAndLineBreaks(url)+")")
 	return 0
 }
 

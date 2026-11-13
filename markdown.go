@@ -155,6 +155,14 @@ func (s *SyntaxContext) addReference(label string, ref reference) {
 	s.references[label] = ref
 }
 
+func (s *SyntaxContext) Link(url string, title string, data MarkupData) int {
+	return s.DocWriter.Link(stripURLTabsAndLineBreaks(url), title, data)
+}
+
+func (s *SyntaxContext) Image(url string, title, alt string, data MarkupData) int {
+	return s.DocWriter.Image(stripURLTabsAndLineBreaks(url), title, alt, data)
+}
+
 // WriteReferenceLink writes a stored reference link using the current DocWriter.
 // It returns false when label has not been defined.
 func (s *SyntaxContext) WriteReferenceLink(text, label string) bool {

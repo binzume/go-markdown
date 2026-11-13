@@ -1,5 +1,18 @@
 package markdown
 
+import "strings"
+
+func stripURLTabsAndLineBreaks(url string) string {
+	return strings.Map(func(r rune) rune {
+		switch r {
+		case '\t', '\r', '\n':
+			return -1
+		default:
+			return r
+		}
+	}, url)
+}
+
 // MarkupData contains optional attributes for markup elements.
 //
 // Additional fields can be added here as more markup attributes are supported.

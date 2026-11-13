@@ -82,11 +82,12 @@ func (w *HTMLWriter) Paragraph() int {
 	return w.closeTag("</p>\n")
 }
 
-// sanitizeURL returns an empty string for URLs with a scheme other than
-// HTTP(S), unless non-HTTP schemes have been explicitly enabled. It only
-// checks the URL prefix; URLs without a scheme, such as relative URLs, remain
+// sanitizeURL removes tabs and line breaks, then returns an empty string for
+// URLs with a scheme other than HTTP(S), unless non-HTTP schemes have been
+// explicitly enabled. URLs without a scheme, such as relative URLs, remain
 // allowed.
 func (w *HTMLWriter) sanitizeURL(rawURL string) string {
+	rawURL = stripURLTabsAndLineBreaks(rawURL)
 	if w.AllowNonHTTPURLSchemes {
 		return rawURL
 	}
